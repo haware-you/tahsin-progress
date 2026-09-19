@@ -7,6 +7,7 @@ import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, type Ti
 import { surahForPage, JUZ_RANGE } from '@/lib/quran'
 import { computeStreak } from '@/lib/streak'
 import { firstName } from '@/lib/format'
+import Laporan, { type Badge, type EarnedBadge } from './Laporan'
 
 type ProgressLog = {
   id: string
@@ -37,6 +38,8 @@ type Props = {
   now: number
   progressLogs: ProgressLog[]
   assessments: Assessment[]
+  badges: Badge[]
+  earnedBadges: EarnedBadge[]
 }
 
 function positionLabel(log: ProgressLog) {
@@ -54,6 +57,8 @@ export default function SiswaView({
   now,
   progressLogs,
   assessments,
+  badges,
+  earnedBadges,
 }: Props) {
   const [view, setView] = useState<'siswa' | 'ortu'>('siswa')
 
@@ -168,10 +173,10 @@ export default function SiswaView({
           <p className="text-[15px] text-ink-2 leading-relaxed mt-5 max-w-md">{heroLine}</p>
           <div className="flex flex-wrap gap-3 mt-7">
             <a
-              href="#riwayat"
+              href="#laporan"
               className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-ink text-paper text-sm font-medium"
             >
-              Lihat riwayat <ArrowUpRight size={15} />
+              Lihat laporan <ArrowUpRight size={15} />
             </a>
             <a
               href={`/api/export/pdf?student_id=${studentId}`}
@@ -245,6 +250,13 @@ export default function SiswaView({
           </div>
         ))}
       </section>
+
+      <Laporan
+        logs={progressLogs}
+        badges={badges}
+        earned={earnedBadges}
+        lanjutCount={assessments.filter((a) => a.outcome === 'lanjut').length}
+      />
 
       {/* Session list */}
       <section className="mt-14" id="riwayat">

@@ -50,3 +50,16 @@ export function weekCountsFrom(dates: string[]) {
   dates.forEach((d) => (c[d] = (c[d] ?? 0) + 1))
   return c
 }
+
+export const badges = [
+  { id: 'b1', name: 'Langkah Pertama', description: 'Catatan pertama di tahun ajaran ini', trigger_type: 'first_log', trigger_value: '1' },
+  { id: 'b2', name: 'Khatam Iqro', description: 'Menyelesaikan Iqro Jilid 6', trigger_type: 'iqro_level', trigger_value: '6' },
+  { id: 'b3', name: 'Khatam Juz 30', description: 'Menyelesaikan bacaan Juz 30 (halaman 604)', trigger_type: 'juz_complete', trigger_value: 'juz30' },
+  { id: 'b4', name: 'Khatam Juz 29', description: 'Menyelesaikan bacaan Juz 29', trigger_type: 'juz_complete', trigger_value: 'juz29' },
+  { id: 'b5', name: '4 Minggu Konsisten', description: 'Mencatat kemajuan selama 4 minggu berturut', trigger_type: 'weekly_streak', trigger_value: '4' },
+]
+
+export const earnedBadges = [
+  { badge_id: 'b1', awarded_at: daysAgo(120) },
+  { badge_id: 'b2', awarded_at: daysAgo(40) },
+]

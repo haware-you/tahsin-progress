@@ -1,5 +1,5 @@
 import SiswaView from '@/app/(protected)/siswa/SiswaView'
-import { siswaLogs, siswaAssessments } from '../mock'
+import { siswaLogs, siswaAssessments, badges, earnedBadges } from '../mock'
 
 export default function PreviewSiswa() {
   return (
@@ -12,6 +12,8 @@ export default function PreviewSiswa() {
       teacherName="Ustadz Hamzah"
       progressLogs={siswaLogs}
       assessments={siswaAssessments}
+      badges={badges}
+      earnedBadges={earnedBadges}
     />
   )
 }

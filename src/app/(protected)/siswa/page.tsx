@@ -35,7 +35,13 @@ export default async function SiswaPage({
   if (isAdmin && !student) redirect('/admin')
   if (!student) redirect('/login')
 
-  const [{ data: progressLogs }, { data: assessments }, { data: activeYear }] =
+  const [
+    { data: progressLogs },
+    { data: assessments },
+    { data: activeYear },
+    { data: badges },
+    { data: earnedBadges },
+  ] =
     await Promise.all([
       supabase
         .from('progress_logs')
@@ -51,6 +57,12 @@ export default async function SiswaPage({
         .order('assessed_at', { ascending: false })
         .limit(20),
       supabase.from('academic_years').select('id').eq('is_active', true).maybeSingle(),
+      supabase.from('badges').select('id, name, description, trigger_type, trigger_value').order('name'),
+      supabase
+        .from('student_badges')
+        .select('badge_id, awarded_at')
+        .eq('student_id', student.id)
+        .order('awarded_at', { ascending: false }),
     ])
 
   let className: string | null = null
@@ -81,6 +93,8 @@ export default async function SiswaPage({
       teacherName={teacherName}
       progressLogs={progressLogs ?? []}
       assessments={assessments ?? []}
+      badges={badges ?? []}
+      earnedBadges={earnedBadges ?? []}
     />
   )
 }

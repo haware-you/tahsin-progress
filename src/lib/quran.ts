@@ -53,12 +53,8 @@ const SURAHS: { page: number; latin: string; arabic: string }[] = [
 
 export function surahForPage(page: number | null | undefined) {
   if (!page) return null
-  let found: (typeof SURAHS)[number] | null = null
-  for (const s of SURAHS) {
-    if (s.page < page || (s.page === page && found?.page !== page)) found = s
-    else if (s.page > page) break
-  }
-  return found
+  // First surah starting on this page, else the last one starting before it.
+  return SURAHS.find((s) => s.page === page) ?? SURAHS.filter((s) => s.page < page).at(-1) ?? null
 }
 
 /** Surahs that start on or after `fromPage` and end before `page` (i.e. fully passed). */

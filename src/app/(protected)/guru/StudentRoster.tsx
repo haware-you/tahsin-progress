@@ -5,7 +5,7 @@ import { useActionState } from 'react'
 import { logProgress } from '@/app/actions/progress'
 import { initials } from '@/lib/format'
 
-type ProgressType = 'iqro' | 'juz30' | 'juz29'
+type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
 export type StudentWithProgress = {
   id: string
@@ -21,11 +21,12 @@ export type StudentWithProgress = {
   } | null
 }
 
-type Filter = 'semua' | 'iqro' | 'quran' | 'tidak_aktif' | 'evaluasi'
+type Filter = 'semua' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'evaluasi'
 
 const JUZ_RANGE: Record<string, { min: number; max: number; label: string }> = {
-  juz30: { min: 582, max: 604, label: 'Juz 30' },
-  juz29: { min: 562, max: 582, label: 'Juz 29' },
+  tadarus: { min: 582, max: 604, label: 'Tadarus Juz 30' },
+  juz30: { min: 582, max: 604, label: 'Hafalan Juz 30' },
+  juz29: { min: 562, max: 582, label: 'Hafalan Juz 29' },
 }
 
 function progressLabel(p: StudentWithProgress['latestProgress']): string {
@@ -79,6 +80,7 @@ export default function StudentRoster({
   const inactiveCount = students.filter((s) => s.isInactive).length
   const assessmentCount = students.filter((s) => s.hasAssessment).length
   const iqroCount = students.filter((s) => s.latestProgress?.type === 'iqro').length
+  const tadarusCount = students.filter((s) => s.latestProgress?.type === 'tadarus').length
   const quranCount = students.filter(
     (s) => s.latestProgress?.type === 'juz30' || s.latestProgress?.type === 'juz29'
   ).length
@@ -87,6 +89,7 @@ export default function StudentRoster({
     if (filter === 'tidak_aktif') return s.isInactive
     if (filter === 'evaluasi') return s.hasAssessment
     if (filter === 'iqro') return s.latestProgress?.type === 'iqro'
+    if (filter === 'tadarus') return s.latestProgress?.type === 'tadarus'
     if (filter === 'quran') return s.latestProgress?.type === 'juz30' || s.latestProgress?.type === 'juz29'
     return true
   })
@@ -113,7 +116,8 @@ export default function StudentRoster({
           [
             { key: 'semua', label: 'Semua', count: students.length },
             { key: 'iqro', label: 'Iqro', count: iqroCount },
-            { key: 'quran', label: 'Al-Quran', count: quranCount },
+            { key: 'tadarus', label: 'Tadarus', count: tadarusCount },
+            { key: 'quran', label: 'Hafalan', count: quranCount },
             { key: 'tidak_aktif', label: 'Tidak Aktif', count: inactiveCount },
             { key: 'evaluasi', label: 'Perlu Evaluasi', count: assessmentCount },
           ] as { key: Filter; label: string; count: number }[]
@@ -243,7 +247,7 @@ export default function StudentRoster({
 
             {/* Track toggle */}
             <div className="flex rounded-xl bg-panel p-1 mb-4">
-              {(['iqro', 'juz30', 'juz29'] as ProgressType[]).map((t) => (
+              {(['iqro', 'tadarus', 'juz30', 'juz29'] as ProgressType[]).map((t) => (
                 <button
                   key={t}
                   type="button"
@@ -252,7 +256,7 @@ export default function StudentRoster({
                     trackType === t ? 'bg-surface text-ink shadow-sm' : 'text-ink-2'
                   }`}
                 >
-                  {t === 'iqro' ? 'Iqro' : t === 'juz30' ? 'Juz 30' : 'Juz 29'}
+                  {t === 'iqro' ? 'Iqro' : t === 'tadarus' ? 'Tadarus' : t === 'juz30' ? 'Hafal 30' : 'Hafal 29'}
                 </button>
               ))}
             </div>
@@ -294,7 +298,7 @@ export default function StudentRoster({
                 </div>
               )}
 
-              {(trackType === 'juz30' || trackType === 'juz29') && juzRange && (
+              {trackType !== 'iqro' && juzRange && (
                 <>
                   <div>
                     <label className="block text-xs font-medium text-ink-2 mb-1.5">
@@ -310,6 +314,13 @@ export default function StudentRoster({
                     />
                   </div>
 
+                  {trackType === 'tadarus' && (
+                    <p className="text-xs text-ink-3 -mt-1">
+                      Tadarus: membaca Juz 30 dengan lancar, belum menghafal. Murajaah dimulai di tahap hafalan.
+                    </p>
+                  )}
+
+                  {trackType !== 'tadarus' && (
                   <div className="flex items-center justify-between py-3 border-t border-line">
                     <div>
                       <p className="text-sm font-medium text-ink">Tandai untuk Murajaah</p>
@@ -330,8 +341,9 @@ export default function StudentRoster({
                       />
                     </button>
                   </div>
+                  )}
 
-                  {murajaah && (
+                  {murajaah && trackType !== 'tadarus' && (
                     <div className="space-y-3 bg-warn-soft rounded-2xl p-4">
                       <p className="text-xs font-semibold text-warn uppercase tracking-wide">
                         Hasil Murajaah

@@ -9,12 +9,15 @@ export function dateKey(d: Date) {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-/** Monday-first days of the current week. */
+/** Progress is recorded at school Monday–Thursday only. */
+export const SCHOOL_DAYS = 4
+
+/** Monday–Thursday of the current week. */
 export function currentWeek(today = new Date()) {
   const monday = new Date(today)
   monday.setHours(0, 0, 0, 0)
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
-  return Array.from({ length: 7 }, (_, i) => {
+  return Array.from({ length: SCHOOL_DAYS }, (_, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
     return d
@@ -50,24 +53,23 @@ export function SectionTitle({
   )
 }
 
-/** Week strip. `counts` maps YYYY-MM-DD → activity count. */
+/** School-week strip (Sen–Kam). `counts` maps YYYY-MM-DD → activity count. */
 export function WeekStrip({ counts, caption }: { counts: Record<string, number>; caption?: string }) {
   const todayKey = dateKey(new Date())
   return (
     <div>
-      <ol className="grid grid-cols-7 gap-1 text-center">
+      <ol className="grid grid-cols-4 gap-2 text-center">
         {currentWeek().map((d) => {
           const key = dateKey(d)
           const isToday = key === todayKey
           const n = counts[key] ?? 0
-          const isSunday = d.getDay() === 0
           return (
             <li
               key={key}
               className={`flex flex-col items-center gap-2 py-3 rounded-full ${isToday ? 'bg-accent-soft' : ''}`}
               aria-label={`${d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric' })}: ${n} catatan`}
             >
-              <span className={`text-xs ${isSunday ? 'text-warn' : 'text-ink-3'}`}>{DAY_NAMES[d.getDay()]}</span>
+              <span className="text-xs text-ink-3">{DAY_NAMES[d.getDay()]}</span>
               <span className={`text-sm font-semibold ${isToday ? 'text-accent' : 'text-ink'}`}>{d.getDate()}</span>
               <span className={`w-1 h-1 rounded-full ${n > 0 ? 'bg-accent' : 'bg-transparent'}`} />
             </li>

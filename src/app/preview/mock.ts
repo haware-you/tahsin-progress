@@ -28,13 +28,14 @@ export const guruClasses = [
     students: names.map((name, i) => {
       const inactive = i === 3 || i === 7
       const iqro = i % 3 === 0
+      const tadarus = i === 4 || i === 8
       return {
         id: 's' + i,
         name,
         isInactive: inactive,
         hasAssessment: i % 4 === 1,
         latestProgress: {
-          type: (iqro ? 'iqro' : 'juz30') as 'iqro' | 'juz30',
+          type: (iqro ? 'iqro' : tadarus ? 'tadarus' : 'juz30') as 'iqro' | 'tadarus' | 'juz30',
           iqro_level: iqro ? (i % 6) + 1 : null,
           iqro_page: iqro ? 12 + i : null,
           juz_page: iqro ? null : 585 + i,
@@ -54,12 +55,14 @@ export function weekCountsFrom(dates: string[]) {
 export const badges = [
   { id: 'b1', name: 'Langkah Pertama', description: 'Catatan pertama di tahun ajaran ini', trigger_type: 'first_log', trigger_value: '1' },
   { id: 'b2', name: 'Khatam Iqro', description: 'Menyelesaikan Iqro Jilid 6', trigger_type: 'iqro_level', trigger_value: '6' },
-  { id: 'b3', name: 'Khatam Juz 30', description: 'Menyelesaikan bacaan Juz 30 (halaman 604)', trigger_type: 'juz_complete', trigger_value: 'juz30' },
-  { id: 'b4', name: 'Khatam Juz 29', description: 'Menyelesaikan bacaan Juz 29', trigger_type: 'juz_complete', trigger_value: 'juz29' },
+  { id: 'b6', name: 'Khatam Tadarus', description: 'Selesai membaca Juz 30 dengan lancar (halaman 604)', trigger_type: 'juz_complete', trigger_value: 'tadarus' },
+  { id: 'b3', name: 'Khatam Juz 30', description: 'Menyelesaikan hafalan Juz 30 (halaman 604)', trigger_type: 'juz_complete', trigger_value: 'juz30' },
+  { id: 'b4', name: 'Khatam Juz 29', description: 'Menyelesaikan hafalan Juz 29', trigger_type: 'juz_complete', trigger_value: 'juz29' },
   { id: 'b5', name: '4 Minggu Konsisten', description: 'Mencatat kemajuan selama 4 minggu berturut', trigger_type: 'weekly_streak', trigger_value: '4' },
 ]
 
 export const earnedBadges = [
   { badge_id: 'b1', awarded_at: daysAgo(120) },
-  { badge_id: 'b2', awarded_at: daysAgo(40) },
+  { badge_id: 'b2', awarded_at: daysAgo(90) },
+  { badge_id: 'b6', awarded_at: daysAgo(30) },
 ]

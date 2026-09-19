@@ -5,7 +5,7 @@ import { computeStreak } from '@/lib/streak'
 
 type Log = {
   log_date: string
-  type: 'iqro' | 'juz30' | 'juz29'
+  type: 'iqro' | 'tadarus' | 'juz30' | 'juz29'
   iqro_level: number | null
   juz_page: number | null
   is_opening_position: boolean
@@ -21,15 +21,16 @@ export type Badge = {
 
 export type EarnedBadge = { badge_id: string; awarded_at: string }
 
-// Curriculum path: Iqro 1–6, then Juz 30, then Juz 29.
-const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Juz 30', 'Juz 29']
+// Curriculum path: Iqro 1–6 → Tadarus Juz 30 (reading) → Hafalan Juz 30 → Hafalan Juz 29.
+const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafal 30', 'Hafal 29']
+const STAGE_START = { tadarus: 6, juz30: 7, juz29: 8 } as const
 
 function stagePosition(log: Log | null): number {
   if (!log) return 0
   if (log.type === 'iqro') return Math.max(0, (log.iqro_level ?? 1) - 1)
   const r = JUZ_RANGE[log.type]
   const frac = Math.min(1, ((log.juz_page ?? r.min) - r.min) / (r.max - r.min + 1))
-  return (log.type === 'juz30' ? 6 : 7) + frac
+  return STAGE_START[log.type] + frac
 }
 
 const ICONS: Record<string, LucideIcon> = {
@@ -66,7 +67,7 @@ export default function Laporan({
       return { value: latest.iqro_level ?? 0, max: 6 }
     }
     if (b.trigger_type === 'juz_complete') {
-      const juz = b.trigger_value as 'juz30' | 'juz29'
+      const juz = b.trigger_value as 'tadarus' | 'juz30' | 'juz29'
       const r = JUZ_RANGE[juz]
       const total = r.max - r.min + 1
       if (latest?.type === juz) return { value: (latest.juz_page ?? r.min) - r.min + 1, max: total }
@@ -104,7 +105,7 @@ export default function Laporan({
         <div className="mt-4">
           <Progress value={pos} max={STAGES.length} />
         </div>
-        <ol className="grid grid-cols-8 mt-3 text-center">
+        <ol className="grid grid-cols-9 mt-3 text-center">
           {STAGES.map((s, i) => (
             <li key={s} className="flex flex-col items-center gap-1.5">
               <span
@@ -117,12 +118,12 @@ export default function Laporan({
                   i === current ? 'text-ink font-semibold' : 'text-ink-3'
                 }`}
               >
-                {s.replace('Iqro ', 'Iqro ')}
+                {s.replace(' ', ' ')}
               </span>
             </li>
           ))}
         </ol>
-        <p className="text-xs text-ink-3 mt-5">Jalur: Iqro 1–6, lalu Juz 30, lalu Juz 29.</p>
+        <p className="text-xs text-ink-3 mt-5">Jalur: Iqro 1–6 → Tadarus Juz 30 (membaca) → Hafalan Juz 30 → Hafalan Juz 29.</p>
       </div>
 
       {/* Achievements */}

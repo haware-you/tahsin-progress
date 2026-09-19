@@ -66,6 +66,7 @@ export function surahsBetween(fromPage: number, page: number) {
 }
 
 export const JUZ_RANGE = {
-  juz30: { min: 582, max: 604, label: 'Juz 30' },
-  juz29: { min: 562, max: 581, label: 'Juz 29' },
+  tadarus: { min: 582, max: 604, label: 'Tadarus Juz 30' },
+  juz30: { min: 582, max: 604, label: 'Hafalan Juz 30' },
+  juz29: { min: 562, max: 581, label: 'Hafalan Juz 29' },
 } as const

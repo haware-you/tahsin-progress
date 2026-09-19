@@ -8,6 +8,11 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 
 ## P0 — Broken
 
+### ☐ 0. Push the tadarus migration
+
+`supabase/migrations/20260919000001_tadarus_track.sql` adds the `tadarus` progress type and the *Khatam Tadarus* badge. Until it's pushed (`npx supabase db push`), saving a Tadarus log fails with an enum error. The demo seed has no tadarus students yet — add some if you need demo data.
+
+
 ### ☐ 1. Badges are never awarded when a teacher logs progress
 
 **Flow:** Teacher saves a log → `tryAwardBadges()` upserts into `student_badges` → parent should see the badge in *Laporan Perjalanan* on `/siswa`.
@@ -94,6 +99,9 @@ Badges are displayed by `src/app/(protected)/siswa/Laporan.tsx`; add an icon for
 ---
 
 ## P3 — Polish / housekeeping
+
+- ☐ **School days:** progress is recorded Mon–Thu only. The week strip and "x/4 hari sekolah" follow that, but `logProgress` still accepts any date and the 4-week streak / 28-day inactive rules count calendar weeks/days. Decide whether to block Fri–Sun logging.
+- ☐ **404 for logged-out users:** `src/proxy.ts` sends every unknown URL to `/login` when not signed in, so only signed-in users see `src/app/not-found.tsx`.
 
 - ☐ **Sub-pages not redesigned:** `/admin/import`, `/admin/users`, `/admin/years` still use the old stone/green styles. Wrap them in `AppShell` and apply DESIGN.md tokens.
 - ☐ **Landing page** (`src/app/page.tsx`) not redesigned; also has 2 lint errors (unescaped `"`).

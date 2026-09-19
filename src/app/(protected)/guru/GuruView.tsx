@@ -48,7 +48,7 @@ export default function GuruView({
     <div className="space-y-12">
       <section>
         <SectionTitle>Minggu Ini</SectionTitle>
-        <WeekStrip counts={weekCounts} caption={`${loggedThisWeek} dari ${allStudents.length} siswa dicatat 7 hari terakhir`} />
+        <WeekStrip counts={weekCounts} caption={`${loggedThisWeek} dari ${allStudents.length} siswa dicatat 7 hari terakhir · Sen–Kam`} />
       </section>
       <section>
         <SectionTitle>Perlu Perhatian</SectionTitle>

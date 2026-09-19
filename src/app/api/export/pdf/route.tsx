@@ -139,6 +139,7 @@ const styles = StyleSheet.create({
 })
 
 const JUZ_LABEL: Record<string, string> = {
+  tadarus: 'Tadarus Juz 30',
   juz30: 'Juz 30',
   juz29: 'Juz 29',
 }

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ArrowUpRight, FileDown } from 'lucide-react'
 import AppShell from '@/components/AppShell'
-import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, type TimelineItem } from '@/components/ui'
+import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, currentWeek, dateKey, SCHOOL_DAYS, type TimelineItem } from '@/components/ui'
 import { surahForPage, JUZ_RANGE } from '@/lib/quran'
 import { computeStreak } from '@/lib/streak'
 import { firstName } from '@/lib/format'
@@ -12,7 +12,7 @@ import Laporan, { type Badge, type EarnedBadge } from './Laporan'
 type ProgressLog = {
   id: string
   log_date: string
-  type: 'iqro' | 'juz30' | 'juz29'
+  type: 'iqro' | 'tadarus' | 'juz30' | 'juz29'
   iqro_level: number | null
   iqro_page: number | null
   juz_page: number | null
@@ -68,10 +68,7 @@ export default function SiswaView({
 
   const counts: Record<string, number> = {}
   realLogs.forEach((l) => (counts[l.log_date] = (counts[l.log_date] ?? 0) + 1))
-  const weekDays = Object.keys(counts).filter((k) => {
-    const d = new Date(k)
-    return now - d.getTime() < 7 * 86400000
-  }).length
+  const weekDays = currentWeek(new Date(now)).filter((d) => counts[dateKey(d)]).length
 
   const surah = latest && latest.type !== 'iqro' ? surahForPage(latest.juz_page) : null
   const range = latest && latest.type !== 'iqro' ? JUZ_RANGE[latest.type] : null
@@ -108,7 +105,9 @@ export default function SiswaView({
   const heroLine = latest
     ? latest.type === 'iqro'
       ? `Sekarang di Iqro ${latest.iqro_level}, halaman ${latest.iqro_page}. Sedikit demi sedikit, insyaAllah lancar.`
-      : `Sekarang di ${range?.label}, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Teruskan murajaah di rumah.`
+      : latest.type === 'tadarus'
+        ? `Sedang tadarus Juz 30, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Lancarkan bacaan sebelum mulai menghafal.`
+        : `Sekarang di ${range?.label}, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Teruskan murajaah di rumah.`
     : 'Belum ada catatan dari ustadz/ustadzah. Catatan pertama akan muncul di sini.'
 
   const aside = (
@@ -119,8 +118,8 @@ export default function SiswaView({
           counts={counts}
           caption={
             streak > 1
-              ? `${weekDays} hari belajar minggu ini · ${streak} minggu berturut-turut`
-              : `${weekDays} hari belajar minggu ini`
+              ? `${weekDays} dari ${SCHOOL_DAYS} hari sekolah minggu ini · ${streak} minggu berturut-turut`
+              : `${weekDays} dari ${SCHOOL_DAYS} hari sekolah minggu ini`
           }
         />
       </section>
@@ -241,7 +240,7 @@ export default function SiswaView({
       <section className="mt-14 grid grid-cols-3 divide-x divide-line border-y border-line">
         {[
           { v: realLogs.length, l: 'sesi tercatat' },
-          { v: weekDays, l: 'hari minggu ini' },
+          { v: `${weekDays}/${SCHOOL_DAYS}`, l: 'hari sekolah minggu ini' },
           { v: streak, l: 'minggu beruntun' },
         ].map((f) => (
           <div key={f.l} className="py-5 px-3 sm:px-6 text-center sm:text-left">

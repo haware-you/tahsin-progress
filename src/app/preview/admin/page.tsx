@@ -10,7 +10,8 @@ export default function PreviewAdmin() {
       inactiveTotal={19}
       totalClasses={15}
       totalTeachers={15}
-      iqroCount={142}
+      iqroCount={120}
+      tadarusCount={22}
       quranCount={187}
       notStartedCount={19}
       classStats={[

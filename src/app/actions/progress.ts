@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/server'
 import { computeStreak } from '@/lib/streak'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
-type ProgressType = 'iqro' | 'juz30' | 'juz29'
+type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
 const JUZ_PAGE_RANGE: Record<string, { min: number; max: number }> = {
+  tadarus: { min: 582, max: 604 },
   juz30: { min: 582, max: 604 },
   juz29: { min: 562, max: 582 },
 }
@@ -56,7 +57,7 @@ async function tryAwardBadges(
   }
 
   // Juz completion milestones
-  if ((logType === 'juz30' || logType === 'juz29') && juzPage !== null) {
+  if ((logType === 'tadarus' || logType === 'juz30' || logType === 'juz29') && juzPage !== null) {
     const range = JUZ_PAGE_RANGE[logType]
     if (juzPage >= range.max) {
       await awardBadge(supabase, studentId, yearId, 'juz_complete', logType)
@@ -132,14 +133,14 @@ export async function logProgress(
       await tryAwardBadges(supabase, studentId, activeYear.id, 'iqro', iqroLevel, null)
     } catch {}
 
-  } else if (type === 'juz30' || type === 'juz29') {
+  } else if (type === 'tadarus' || type === 'juz30' || type === 'juz29') {
     const juzPage = parseInt(formData.get('juz_page') as string)
     const notes = (formData.get('notes') as string).trim() || null
     const range = JUZ_PAGE_RANGE[type]
 
     if (!juzPage || isNaN(juzPage)) return 'Nomor halaman wajib diisi.'
     if (juzPage < range.min || juzPage > range.max)
-      return `Halaman ${type === 'juz30' ? 'Juz 30' : 'Juz 29'} harus antara ${range.min}–${range.max}.`
+      return `Halaman ${type === 'juz29' ? 'Juz 29' : 'Juz 30'} harus antara ${range.min}–${range.max}.`
 
     const { error: progressError } = await supabase.from('progress_logs').insert({
       student_id: studentId,
@@ -152,8 +153,8 @@ export async function logProgress(
 
     if (progressError) return 'Gagal menyimpan catatan. Coba lagi.'
 
-    // Murajaah assessment (optional)
-    const murajaah = formData.get('murajaah') === 'true'
+    // Murajaah assessment (optional, hafalan only)
+    const murajaah = type !== 'tadarus' && formData.get('murajaah') === 'true'
     if (murajaah) {
       const outcome = formData.get('murajaah_outcome') as string
       const reason = (formData.get('murajaah_reason') as string).trim()

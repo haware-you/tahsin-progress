@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 
-type ProgressType = 'iqro' | 'juz30' | 'juz29'
+type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
 export type CsvRow = {
   nama_siswa: string
@@ -69,8 +69,8 @@ function validateRows(rawRows: CsvRow[]): ParsedRow[] {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r.email_akun)) errors.push('Format email tidak valid')
 
     const track = r.track?.toLowerCase() as ProgressType
-    if (track !== 'iqro' && track !== 'juz30' && track !== 'juz29')
-      errors.push('Track harus "iqro", "juz30", atau "juz29"')
+    if (track !== 'iqro' && track !== 'tadarus' && track !== 'juz30' && track !== 'juz29')
+      errors.push('Track harus "iqro", "tadarus", "juz30", atau "juz29"')
 
     let iqroLevel: number | null = null
     let iqroHalaman: number | null = null
@@ -83,10 +83,10 @@ function validateRows(rawRows: CsvRow[]): ParsedRow[] {
         errors.push('iqro_level harus angka 1–6')
       if (isNaN(iqroHalaman) || iqroHalaman < 1)
         errors.push('iqro_halaman harus angka positif')
-    } else if (track === 'juz30') {
+    } else if (track === 'tadarus' || track === 'juz30') {
       juzHalaman = parseInt(r.juz_halaman)
       if (isNaN(juzHalaman) || juzHalaman < 582 || juzHalaman > 604)
-        errors.push('juz_halaman untuk Juz 30 harus antara 582–604')
+        errors.push('juz_halaman untuk Tadarus/Juz 30 harus antara 582–604')
     } else if (track === 'juz29') {
       juzHalaman = parseInt(r.juz_halaman)
       if (isNaN(juzHalaman) || juzHalaman < 562 || juzHalaman > 582)
@@ -98,7 +98,7 @@ function validateRows(rawRows: CsvRow[]): ParsedRow[] {
       nama_siswa: r.nama_siswa,
       kelas: r.kelas,
       email_akun: r.email_akun,
-      track: (['iqro', 'juz30', 'juz29'].includes(track) ? track : 'iqro') as ProgressType,
+      track: (['iqro', 'tadarus', 'juz30', 'juz29'].includes(track) ? track : 'iqro') as ProgressType,
       iqro_level: isNaN(iqroLevel ?? NaN) ? null : iqroLevel,
       iqro_halaman: isNaN(iqroHalaman ?? NaN) ? null : iqroHalaman,
       juz_halaman: isNaN(juzHalaman ?? NaN) ? null : juzHalaman,
@@ -244,7 +244,7 @@ export async function commitCsvImport(
         iqro_page: row.iqro_halaman,
         is_opening_position: true,
       })
-    } else if ((row.track === 'juz30' || row.track === 'juz29') && row.juz_halaman) {
+    } else if ((row.track === 'tadarus' || row.track === 'juz30' || row.track === 'juz29') && row.juz_halaman) {
       await supabase.from('progress_logs').insert({
         student_id: studentId,
         teacher_id: existingClass.teacher_id,

@@ -114,6 +114,7 @@ export default async function AdminPage() {
     const t = latestTypeByStudent.get(id)
     return t === 'juz30' || t === 'juz29'
   }).length
+  const tadarusCount = allStudentIds.filter((id) => latestTypeByStudent.get(id) === 'tadarus').length
   const notStartedCount = allStudentIds.filter((id) => !latestTypeByStudent.has(id)).length
 
   // Per-class stats
@@ -154,6 +155,7 @@ export default async function AdminPage() {
       totalTeachers={totalTeachers}
       iqroCount={iqroCount}
       quranCount={quranCount}
+      tadarusCount={tadarusCount}
       notStartedCount={notStartedCount}
       classStats={classStats}
       weekCounts={weekCounts}

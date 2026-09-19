@@ -130,7 +130,7 @@ export default async function GuruPage({
             hasAssessment,
             latestProgress: log
               ? {
-                  type: log.type as 'iqro' | 'juz30' | 'juz29',
+                  type: log.type as 'iqro' | 'tadarus' | 'juz30' | 'juz29',
                   iqro_level: log.iqro_level,
                   iqro_page: log.iqro_page,
                   juz_page: log.juz_page,

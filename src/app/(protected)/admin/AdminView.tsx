@@ -24,6 +24,7 @@ export type AdminViewProps = {
   totalClasses: number
   totalTeachers: number
   iqroCount: number
+  tadarusCount: number
   quranCount: number
   notStartedCount: number
   classStats: ClassStat[]
@@ -38,6 +39,7 @@ export default function AdminView({
   totalClasses,
   totalTeachers,
   iqroCount,
+  tadarusCount,
   quranCount,
   notStartedCount,
   classStats,
@@ -45,7 +47,8 @@ export default function AdminView({
 }: AdminViewProps) {
   const tracks = [
     { label: 'Iqro', value: iqroCount, cls: 'bg-gold' },
-    { label: 'Al-Quran', value: quranCount, cls: 'bg-accent' },
+    { label: 'Tadarus', value: tadarusCount, cls: 'bg-accent-soft' },
+    { label: 'Hafalan', value: quranCount, cls: 'bg-accent' },
     { label: 'Belum mulai', value: notStartedCount, cls: 'bg-line' },
   ]
 
@@ -59,7 +62,7 @@ export default function AdminView({
     <div className="space-y-12">
       <section>
         <SectionTitle>Minggu Ini</SectionTitle>
-        <WeekStrip counts={weekCounts} caption={`${activeThisWeek} siswa dicatat 7 hari terakhir`} />
+        <WeekStrip counts={weekCounts} caption={`${activeThisWeek} siswa dicatat 7 hari terakhir · Sen–Kam`} />
       </section>
       <section>
         <SectionTitle>Pengaturan</SectionTitle>

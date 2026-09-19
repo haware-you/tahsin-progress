@@ -30,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id" className={`${montserrat.variable} ${garamond.variable} ${amiri.variable} h-full`}>
-      <body className="min-h-full flex flex-col bg-stone-50 text-stone-900 antialiased font-sans">
+      <body className="min-h-full flex flex-col bg-paper text-ink antialiased font-sans">
         {children}
       </body>
     </html>

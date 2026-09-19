@@ -1,305 +1,304 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import { logout } from '@/app/actions/auth';
+import { useState } from 'react'
+import { ArrowUpRight, FileDown } from 'lucide-react'
+import AppShell from '@/components/AppShell'
+import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, type TimelineItem } from '@/components/ui'
+import { surahForPage, JUZ_RANGE } from '@/lib/quran'
+import { computeStreak } from '@/lib/streak'
+import { firstName } from '@/lib/format'
 
 type ProgressLog = {
-  id: string;
-  log_date: string;
-  type: 'iqro' | 'juz30' | 'juz29';
-  iqro_level: number | null;
-  iqro_page: number | null;
-  juz_page: number | null;
-  notes: string | null;
-  is_opening_position: boolean;
-};
+  id: string
+  log_date: string
+  type: 'iqro' | 'juz30' | 'juz29'
+  iqro_level: number | null
+  iqro_page: number | null
+  juz_page: number | null
+  notes: string | null
+  is_opening_position: boolean
+}
 
 type Assessment = {
-  id: string;
-  juz_type: 'juz30' | 'juz29';
-  juz_page: number;
-  outcome: 'lanjut' | 'ulang';
-  reason: string;
-  assessed_at: string;
-};
+  id: string
+  juz_type: 'juz30' | 'juz29'
+  juz_page: number
+  outcome: 'lanjut' | 'ulang'
+  reason: string
+  assessed_at: string
+}
 
 type Props = {
-  studentName: string;
-  className?: string | null;
-  teacherName?: string | null;
-  progressLogs: ProgressLog[];
-  assessments: Assessment[];
-};
-
-function formatPosition(log: ProgressLog): string {
-  if (log.type === 'iqro') return `Iqro ${log.iqro_level} — Halaman ${log.iqro_page}`;
-  if (log.type === 'juz30') return `Juz 30 — Halaman ${log.juz_page}`;
-  return `Juz 29 — Halaman ${log.juz_page}`;
+  studentId: string
+  studentName: string
+  className?: string | null
+  teacherName?: string | null
+  role: 'admin' | 'student_parent'
+  now: number
+  progressLogs: ProgressLog[]
+  assessments: Assessment[]
 }
 
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
-
-function daysSince(dateStr: string): string {
-  const diffDays = Math.floor(
-    (Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diffDays === 0) return 'Hari ini';
-  if (diffDays === 1) return 'Kemarin';
-  return `${diffDays} hari lalu`;
-}
-
-function getWeeklyActiveDays(logs: ProgressLog[]): number {
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const dates = new Set(
-    logs
-      .filter((l) => !l.is_opening_position && new Date(l.log_date) >= cutoff)
-      .map((l) => l.log_date)
-  );
-  return dates.size;
+function positionLabel(log: ProgressLog) {
+  if (log.type === 'iqro') return `Iqro ${log.iqro_level} · Hal. ${log.iqro_page}`
+  const surah = surahForPage(log.juz_page)
+  return `${JUZ_RANGE[log.type].label} · Hal. ${log.juz_page}${surah ? ` · ${surah.latin}` : ''}`
 }
 
 export default function SiswaView({
+  studentId,
   studentName,
   className,
   teacherName,
+  role,
+  now,
   progressLogs,
   assessments,
 }: Props) {
-  const [view, setView] = useState<'siswa' | 'ortu'>('siswa');
+  const [view, setView] = useState<'siswa' | 'ortu'>('siswa')
 
-  const realLogs = progressLogs.filter((l) => !l.is_opening_position);
-  const latestLog = realLogs[0] ?? null;
-  const weeklyDays = getWeeklyActiveDays(progressLogs);
-  const totalSessions = realLogs.length;
+  const realLogs = progressLogs.filter((l) => !l.is_opening_position)
+  const latest = progressLogs[0] ?? null
+  const streak = computeStreak(realLogs.map((l) => l.log_date))
+
+  const counts: Record<string, number> = {}
+  realLogs.forEach((l) => (counts[l.log_date] = (counts[l.log_date] ?? 0) + 1))
+  const weekDays = Object.keys(counts).filter((k) => {
+    const d = new Date(k)
+    return now - d.getTime() < 7 * 86400000
+  }).length
+
+  const surah = latest && latest.type !== 'iqro' ? surahForPage(latest.juz_page) : null
+  const range = latest && latest.type !== 'iqro' ? JUZ_RANGE[latest.type] : null
+
+  const teacher = teacherName ?? 'Ustadz/Ustadzah'
+  const timeline: TimelineItem[] = [
+    ...realLogs
+      .filter((l) => view === 'ortu' ? !!l.notes : true)
+      .slice(0, 8)
+      .map((l) => ({
+        id: 'l' + l.id,
+        name: teacher,
+        note: l.notes,
+        tag: positionLabel(l),
+        tone: 'accent' as const,
+        when: relativeDay(l.log_date),
+        sort: l.log_date,
+      })),
+    ...(view === 'ortu'
+      ? assessments.slice(0, 8).map((a) => ({
+          id: 'a' + a.id,
+          name: `Murajaah ${JUZ_RANGE[a.juz_type].label}`,
+          note: a.reason || null,
+          tag: a.outcome === 'lanjut' ? `Lanjut · Hal. ${a.juz_page}` : `Ulang · Hal. ${a.juz_page}`,
+          tone: a.outcome === 'lanjut' ? ('accent' as const) : ('warn' as const),
+          when: relativeDay(a.assessed_at),
+          sort: a.assessed_at.slice(0, 10),
+        }))
+      : []),
+  ]
+    .sort((a, b) => (a.sort < b.sort ? 1 : -1))
+    .slice(0, 8)
+
+  const heroLine = latest
+    ? latest.type === 'iqro'
+      ? `Sekarang di Iqro ${latest.iqro_level}, halaman ${latest.iqro_page}. Sedikit demi sedikit, insyaAllah lancar.`
+      : `Sekarang di ${range?.label}, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Teruskan murajaah di rumah.`
+    : 'Belum ada catatan dari ustadz/ustadzah. Catatan pertama akan muncul di sini.'
+
+  const aside = (
+    <div className="space-y-12">
+      <section>
+        <SectionTitle>Minggu Ini</SectionTitle>
+        <WeekStrip
+          counts={counts}
+          caption={
+            streak > 1
+              ? `${weekDays} hari belajar minggu ini · ${streak} minggu berturut-turut`
+              : `${weekDays} hari belajar minggu ini`
+          }
+        />
+      </section>
+
+      <section>
+        <SectionTitle
+          action={
+            <div className="flex rounded-full bg-surface p-1 text-xs font-medium" role="tablist">
+              {(['siswa', 'ortu'] as const).map((v) => (
+                <button
+                  key={v}
+                  role="tab"
+                  aria-selected={view === v}
+                  onClick={() => setView(v)}
+                  className={`px-3 py-1.5 rounded-full transition-colors cursor-pointer ${
+                    view === v ? 'bg-ink text-paper' : 'text-ink-2'
+                  }`}
+                >
+                  {v === 'siswa' ? 'Siswa' : 'Orang Tua'}
+                </button>
+              ))}
+            </div>
+          }
+        >
+          {view === 'ortu' ? 'Catatan Guru' : 'Riwayat'}
+        </SectionTitle>
+        <Timeline
+          items={timeline}
+          empty={view === 'ortu' ? 'Belum ada catatan atau evaluasi dari guru.' : 'Belum ada sesi yang tercatat.'}
+        />
+      </section>
+    </div>
+  )
 
   return (
-    <div style={{ background: '#052e16', minHeight: '100vh' }}>
-      <div style={{ maxWidth: 480, margin: '0 auto' }}>
-        {/* Header */}
-        <header
-          className="flex items-center justify-between px-4 py-3 sticky top-0 z-10"
-          style={{ background: '#041c0e', borderBottom: '1px solid #065f46' }}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #854d0e, #fbbf24)', color: '#041c0e' }}
+    <AppShell
+      role={role}
+      userName={studentName}
+      userMeta={[className, teacherName].filter(Boolean).join(' · ') || undefined}
+      aside={aside}
+    >
+      {/* Hero */}
+      <section className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:items-center">
+        <div>
+          <h1 className="font-serif text-[40px] sm:text-5xl xl:text-[56px] font-medium leading-[1.05] text-ink">
+            Assalamu&apos;alaikum,
+            <br />
+            {firstName(studentName)}
+          </h1>
+          <p className="text-[15px] text-ink-2 leading-relaxed mt-5 max-w-md">{heroLine}</p>
+          <div className="flex flex-wrap gap-3 mt-7">
+            <a
+              href="#riwayat"
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-ink text-paper text-sm font-medium"
             >
-              ق
-            </div>
-            <span className="text-sm font-semibold" style={{ color: '#fef9c3' }}>
-              Al Bayyinah
-            </span>
-          </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-              style={{ background: '#14532d', color: '#fbbf24', border: '1.5px solid #fbbf24' }}
-              title="Keluar"
+              Lihat riwayat <ArrowUpRight size={15} />
+            </a>
+            <a
+              href={`/api/export/pdf?student_id=${studentId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full border border-line text-ink text-sm font-medium hover:bg-surface"
             >
-              {studentName.charAt(0).toUpperCase()}
-            </button>
-          </form>
-        </header>
-
-        <div className="px-4 py-4 flex flex-col gap-4">
-          {/* Greeting */}
-          <div>
-            <p className="text-xs uppercase tracking-widest mb-0.5" style={{ color: '#6ee7b7' }}>
-              Assalamu&apos;alaikum
-            </p>
-            <h1 className="text-xl font-bold" style={{ color: '#fef9c3' }}>
-              {studentName}
-            </h1>
-            {(className || teacherName) && (
-              <p className="text-xs mt-0.5" style={{ color: '#6ee7b7' }}>
-                {className}
-                {teacherName ? ` · ${teacherName}` : ''}
-              </p>
-            )}
+              <FileDown size={15} /> Laporan PDF
+            </a>
           </div>
+        </div>
 
-          {/* View toggle */}
-          <div
-            className="flex rounded-xl p-1 gap-1"
-            style={{ background: '#041c0e', border: '1px solid #065f46' }}
-          >
-            {(['siswa', 'ortu'] as const).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className="flex-1 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  background: view === v ? '#fbbf24' : 'transparent',
-                  color: view === v ? '#041c0e' : '#6ee7b7',
-                }}
+        {/* Current position — the "open book" */}
+        <div className="rounded-[28px] bg-surface p-7 sm:p-9 shadow-[0_1px_2px_rgba(29,33,27,0.06)]">
+          {latest ? (
+            <>
+              <p className="text-xs font-medium text-ink-3 uppercase tracking-[0.14em]">Posisi saat ini</p>
+              <p
+                dir="rtl"
+                lang="ar"
+                className="font-arabic text-5xl sm:text-6xl text-ink text-right leading-[1.6] mt-2"
               >
-                {v === 'siswa' ? 'Tampilan Siswa' : 'Tampilan Orang Tua'}
-              </button>
-            ))}
-          </div>
-
-          {/* Current position card */}
-          {latestLog ? (
-            <div
-              className="rounded-2xl p-5 relative overflow-hidden"
-              style={{ background: 'linear-gradient(135deg, #854d0e, #ca8a04, #fbbf24)' }}
-            >
-              <span
-                className="absolute right-4 top-1/2 -translate-y-1/2 select-none pointer-events-none"
-                style={{ opacity: 0.12, color: '#fff', fontSize: 80 }}
-                aria-hidden
-              >
-                ۞
-              </span>
-              <p className="text-xs font-medium mb-1" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                Posisi Saat Ini
+                {latest.type === 'iqro' ? `إقرأ ${latest.iqro_level}` : (surah?.arabic ?? 'جزء')}
               </p>
-              <p className="text-3xl font-bold mb-0.5" style={{ color: '#fff' }}>
-                {latestLog.type === 'iqro'
-                  ? `Iqro ${latestLog.iqro_level}`
-                  : latestLog.type === 'juz30'
-                    ? 'Juz 30'
-                    : 'Juz 29'}
+              <h2 className="font-serif text-3xl text-ink mt-1">
+                {latest.type === 'iqro' ? `Iqro ${latest.iqro_level}` : (surah?.latin ?? range?.label)}
+              </h2>
+              <p className="text-sm text-ink-2 mt-1">
+                {latest.type === 'iqro' ? (
+                  <>
+                    Halaman <span className="font-semibold text-gold">{latest.iqro_page}</span> · jilid{' '}
+                    {latest.iqro_level} dari 6
+                  </>
+                ) : (
+                  <>
+                    <span className="font-semibold text-gold">{(latest.juz_page ?? 0) - (range?.min ?? 0) + 1}</span> /{' '}
+                    {(range?.max ?? 0) - (range?.min ?? 0) + 1} halaman {range?.label}
+                  </>
+                )}
               </p>
-              <p className="text-base font-semibold" style={{ color: 'rgba(255,255,255,0.9)' }}>
-                Halaman {latestLog.type === 'iqro' ? latestLog.iqro_page : latestLog.juz_page}
-              </p>
-              <p className="text-xs mt-3" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Diperbarui {formatDate(latestLog.log_date)}
-              </p>
-            </div>
+              <div className="mt-5">
+                {latest.type === 'iqro' ? (
+                  <Progress value={latest.iqro_level ?? 0} max={6} />
+                ) : (
+                  <Progress value={(latest.juz_page ?? 0) - (range?.min ?? 0) + 1} max={(range?.max ?? 1) - (range?.min ?? 0) + 1} />
+                )}
+              </div>
+              <p className="text-xs text-ink-3 mt-4 text-right">— diperbarui {relativeDay(latest.log_date).toLowerCase()}</p>
+            </>
           ) : (
-            <div
-              className="rounded-2xl p-5 flex items-center justify-center"
-              style={{ background: '#064e3b', border: '1px solid #065f46', minHeight: 120 }}
-            >
-              <p className="text-sm text-center" style={{ color: '#6ee7b7' }}>
-                Belum ada data progres yang tercatat
+            <div className="py-10 text-center">
+              <p dir="rtl" lang="ar" className="font-arabic text-5xl text-ink-3 leading-[1.6]">
+                بسم الله
               </p>
+              <p className="text-sm text-ink-3 mt-3">Menunggu catatan pertama</p>
             </div>
           )}
+        </div>
+      </section>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { value: String(totalSessions), label: 'Total Sesi' },
-              { value: String(weeklyDays), label: 'Aktif Minggu Ini' },
-              {
-                value: latestLog ? daysSince(latestLog.log_date) : '—',
-                label: 'Sesi Terakhir',
-              },
-            ].map((s, i) => (
-              <div
-                key={i}
-                className="rounded-xl p-3 flex flex-col items-center text-center"
-                style={{ background: '#064e3b', border: '1px solid #065f46' }}
-              >
-                <span className="text-lg font-bold leading-tight" style={{ color: '#fbbf24' }}>
-                  {s.value}
-                </span>
-                <span className="text-xs leading-tight mt-1" style={{ color: '#6ee7b7' }}>
-                  {s.label}
-                </span>
-              </div>
-            ))}
+      {/* Figures */}
+      <section className="mt-14 grid grid-cols-3 divide-x divide-line border-y border-line">
+        {[
+          { v: realLogs.length, l: 'sesi tercatat' },
+          { v: weekDays, l: 'hari minggu ini' },
+          { v: streak, l: 'minggu beruntun' },
+        ].map((f) => (
+          <div key={f.l} className="py-5 px-3 sm:px-6 text-center sm:text-left">
+            <p className="font-serif text-3xl sm:text-4xl text-ink">{f.v}</p>
+            <p className="text-xs text-ink-3 mt-1">{f.l}</p>
           </div>
+        ))}
+      </section>
 
-          {/* Recent sessions */}
-          <div>
-            <h2 className="text-sm font-semibold mb-3" style={{ color: '#fef9c3' }}>
-              Riwayat Sesi
-            </h2>
-            {realLogs.length === 0 ? (
-              <p className="text-sm" style={{ color: '#6ee7b7' }}>
-                Belum ada sesi yang tercatat.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {realLogs.slice(0, 10).map((log) => (
-                  <div
-                    key={log.id}
-                    className="rounded-xl px-4 py-3"
-                    style={{ background: '#064e3b', border: '1px solid #065f46' }}
+      {/* Session list */}
+      <section className="mt-14" id="riwayat">
+        <SectionTitle>Sesi Terakhir</SectionTitle>
+        {realLogs.length === 0 ? (
+          <p className="text-sm text-ink-3">Belum ada sesi yang tercatat.</p>
+        ) : (
+          <ul className="space-y-2">
+            {realLogs.slice(0, 10).map((log) => {
+              const s = log.type !== 'iqro' ? surahForPage(log.juz_page) : null
+              return (
+                <li key={log.id} className="flex items-center gap-4 rounded-2xl bg-surface px-5 py-4 min-h-[56px]">
+                  <span
+                    dir="rtl"
+                    lang="ar"
+                    className="font-arabic text-2xl text-accent w-16 text-center shrink-0 leading-none"
+                    aria-hidden
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-sm font-medium" style={{ color: '#fef9c3' }}>
-                        {formatPosition(log)}
-                      </span>
-                      <span
-                        className="text-xs flex-shrink-0"
-                        style={{ color: '#6ee7b7' }}
-                      >
-                        {formatDate(log.log_date)}
-                      </span>
-                    </div>
+                    {log.type === 'iqro' ? log.iqro_level : (s?.arabic ?? '')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-ink truncate">{positionLabel(log)}</p>
                     {view === 'ortu' && log.notes && (
-                      <p
-                        className="text-xs mt-2 leading-relaxed"
-                        style={{ color: '#a7f3d0' }}
-                      >
-                        Catatan: {log.notes}
-                      </p>
+                      <p className="text-xs italic text-ink-2 mt-0.5 line-clamp-2">{log.notes}</p>
                     )}
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <span className="text-xs text-ink-3 shrink-0">{relativeDay(log.log_date)}</span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
 
-          {/* Assessment history — parent view only */}
-          {view === 'ortu' && assessments.length > 0 && (
-            <div>
-              <h2 className="text-sm font-semibold mb-3" style={{ color: '#fef9c3' }}>
-                Riwayat Evaluasi
-              </h2>
-              <div className="flex flex-col gap-2">
-                {assessments.slice(0, 10).map((a) => (
-                  <div
-                    key={a.id}
-                    className="rounded-xl px-4 py-3"
-                    style={{ background: '#064e3b', border: '1px solid #065f46' }}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="text-sm font-medium" style={{ color: '#fef9c3' }}>
-                        {a.juz_type === 'juz30' ? 'Juz 30' : 'Juz 29'} — Hal. {a.juz_page}
-                      </span>
-                      <span
-                        className="text-xs rounded-full px-2 py-0.5 font-semibold flex-shrink-0"
-                        style={
-                          a.outcome === 'lanjut'
-                            ? { background: '#14532d', color: '#34d399' }
-                            : { background: '#854d0e', color: '#fbbf24' }
-                        }
-                      >
-                        {a.outcome === 'lanjut' ? 'Lanjut ✓' : 'Ulang'}
-                      </span>
-                    </div>
-                    <p className="text-xs" style={{ color: '#6ee7b7' }}>
-                      {new Date(a.assessed_at).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                      {a.outcome === 'ulang' && a.reason ? ` · ${a.reason}` : ''}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bottom safe-area padding */}
-          <div style={{ height: 32 }} />
-        </div>
-      </div>
-    </div>
-  );
+      {view === 'ortu' && assessments.length > 0 && (
+        <section className="mt-14">
+          <SectionTitle>Evaluasi Murajaah</SectionTitle>
+          <ul className="space-y-2">
+            {assessments.slice(0, 10).map((a) => (
+              <li key={a.id} className="flex items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-ink">
+                    {JUZ_RANGE[a.juz_type].label} · Hal. {a.juz_page}
+                  </p>
+                  {a.reason && <p className="text-xs italic text-ink-2 mt-0.5">{a.reason}</p>}
+                </div>
+                <Chip tone={a.outcome === 'lanjut' ? 'accent' : 'warn'}>
+                  {a.outcome === 'lanjut' ? 'Lanjut' : 'Ulang'}
+                </Chip>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </AppShell>
+  )
 }

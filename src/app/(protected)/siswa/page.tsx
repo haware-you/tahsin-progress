@@ -73,6 +73,9 @@ export default async function SiswaPage({
 
   return (
     <SiswaView
+      studentId={student.id}
+      now={Date.now()}
+      role={isAdmin ? 'admin' : 'student_parent'}
       studentName={student.name ?? user.email ?? 'Siswa'}
       className={className}
       teacherName={teacherName}

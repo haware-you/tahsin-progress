@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { logout } from '@/app/actions/auth'
+import { ArrowUpRight } from 'lucide-react'
+import AppShell from '@/components/AppShell'
+import { SectionTitle, WeekStrip, Timeline, Chip, relativeDay, type TimelineItem } from '@/components/ui'
+import { firstName } from '@/lib/format'
 import StudentRoster, { type StudentWithProgress } from './StudentRoster'
 
 const INACTIVE_DAYS = 28
@@ -57,6 +60,8 @@ export default async function GuruPage({
 
   const { data: classes } = await classesQuery
 
+  const weekCounts: Record<string, number> = {}
+
   const inactiveCutoff = new Date(Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000)
 
   type ClassWithStudents = { id: string; name: string; students: StudentWithProgress[] }
@@ -100,6 +105,9 @@ export default async function GuruPage({
         ])
 
         logs = (logsResult.data ?? []) as unknown as LogRow[]
+        logs.forEach((l) => {
+          if (l.log_date) weekCounts[l.log_date] = (weekCounts[l.log_date] ?? 0) + 1
+        })
         assessedStudentIds = new Set(
           (assessmentsResult.data ?? []).map((a) => a.student_id as string)
         )
@@ -140,80 +148,110 @@ export default async function GuruPage({
     })
   )
 
+  // Aggregate for hero + side panel
+  const allStudents = classesWithStudents.flatMap((c) => c.students)
+  const weekAgo = Date.now() - 7 * 86400000
+  const loggedThisWeek = allStudents.filter(
+    (s) => s.latestProgress?.log_date && new Date(s.latestProgress.log_date).getTime() >= weekAgo
+  ).length
+  const inactive = allStudents.filter((s) => s.isInactive)
+  const displayName = isAdmin ? 'Admin' : (teacher?.name ?? user.email ?? 'Ustadz')
+
+  const attention: TimelineItem[] = inactive.slice(0, 6).map((s) => ({
+    id: s.id,
+    name: s.name,
+    note: s.latestProgress?.log_date
+      ? `Terakhir dicatat ${relativeDay(s.latestProgress.log_date).toLowerCase()}.`
+      : 'Belum pernah dicatat tahun ini.',
+    tag: 'Tidak aktif 28+ hari',
+    tone: 'warn',
+    when: '',
+  }))
+
+  const aside = (
+    <div className="space-y-12">
+      <section>
+        <SectionTitle>Minggu Ini</SectionTitle>
+        <WeekStrip counts={weekCounts} caption={`${loggedThisWeek} dari ${allStudents.length} siswa dicatat 7 hari terakhir`} />
+      </section>
+      <section>
+        <SectionTitle>Perlu Perhatian</SectionTitle>
+        <Timeline items={attention} empty="Semua siswa aktif. Alhamdulillah." />
+        {inactive.length > attention.length && (
+          <p className="text-xs text-ink-3 mt-5">+{inactive.length - attention.length} siswa lainnya</p>
+        )}
+      </section>
+    </div>
+  )
+
   return (
-    <div className="min-h-screen bg-stone-50">
-      <header className="bg-white border-b border-stone-100 sticky top-0 z-10">
-        <div className="px-4 py-4 max-w-lg mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-stone-400 font-medium uppercase tracking-wide">
-                {isAdmin ? 'Admin' : 'Ustadz/Ustadzah'}
-              </p>
-              <h1 className="text-base font-bold text-stone-900">
-                {isAdmin ? 'Semua Kelas' : (teacher?.name ?? user.email)}
-              </h1>
-            </div>
-            <form action={logout}>
-              <button
-                type="submit"
-                className="text-sm text-stone-500 hover:text-red-600 transition-colors min-h-[44px] px-2"
-              >
-                Keluar
-              </button>
-            </form>
-          </div>
-
-          {(allYears ?? []).length > 1 && (
-            <div className="mt-3 flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-              {(allYears ?? []).map((year) => (
-                <a
-                  key={year.id}
-                  href={year.is_active ? '/guru' : `/guru?year_id=${year.id}`}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    selectedYear?.id === year.id
-                      ? 'bg-green-700 text-white'
-                      : 'bg-stone-100 text-stone-500'
-                  }`}
-                >
-                  {year.label}
-                  {year.is_active && <span className="ml-1 opacity-70">· Aktif</span>}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      </header>
-
-      <main className="max-w-lg mx-auto px-4 py-6 space-y-6">
-        {isReadonly && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 text-sm text-amber-700">
-            Arsip tahun ajaran {selectedYear?.label} — hanya baca.
-          </div>
+    <AppShell
+      role={isAdmin ? 'admin' : 'teacher'}
+      userName={displayName}
+      userMeta={isAdmin ? 'Semua kelas' : 'Ustadz/Ustadzah'}
+      aside={aside}
+    >
+      <section>
+        <h1 className="font-serif text-[40px] sm:text-5xl xl:text-[56px] font-medium leading-[1.05] text-ink">
+          Assalamu&apos;alaikum,
+          <br />
+          {isAdmin ? 'Semua Kelas' : firstName(displayName)}
+        </h1>
+        <p className="text-[15px] text-ink-2 leading-relaxed mt-5 max-w-lg">
+          {allStudents.length === 0
+            ? 'Belum ada siswa di kelas Anda untuk tahun ajaran ini.'
+            : `${allStudents.length} siswa di ${classesWithStudents.length} kelas. ${loggedThisWeek} sudah dicatat minggu ini${
+                inactive.length ? `, ${inactive.length} belum dicatat lebih dari 4 minggu.` : '.'
+              }`}
+        </p>
+        {!isReadonly && allStudents.length > 0 && (
+          <a
+            href="#kelas"
+            className="inline-flex items-center gap-1.5 h-10 px-5 mt-7 rounded-full bg-ink text-paper text-sm font-medium"
+          >
+            Mulai mencatat <ArrowUpRight size={15} />
+          </a>
         )}
 
+        {(allYears ?? []).length > 1 && (
+          <div className="mt-8 flex gap-2 overflow-x-auto pb-1">
+            {(allYears ?? []).map((year) => (
+              <a
+                key={year.id}
+                href={year.is_active ? '/guru' : `/guru?year_id=${year.id}`}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  selectedYear?.id === year.id ? 'bg-accent-soft text-accent' : 'text-ink-3 hover:bg-surface'
+                }`}
+              >
+                {year.label}
+                {year.is_active && <span className="ml-1 opacity-70">· Aktif</span>}
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {isReadonly && (
+        <div className="mt-8 bg-warn-soft rounded-2xl px-5 py-3 text-sm text-warn">
+          Arsip tahun ajaran {selectedYear?.label} — hanya baca.
+        </div>
+      )}
+
+      <div id="kelas" className="mt-14 space-y-14 scroll-mt-6">
         {classesWithStudents.length > 0 ? (
           classesWithStudents.map((cls) => (
             <section key={cls.id}>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-stone-900">{cls.name}</h2>
-                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                  {cls.students.length} siswa
-                </span>
-              </div>
+              <SectionTitle action={<Chip tone="muted">{cls.students.length} siswa</Chip>}>{cls.name}</SectionTitle>
               <StudentRoster students={cls.students} isReadonly={isReadonly} isAdmin={isAdmin} />
             </section>
           ))
         ) : (
-          <div className="bg-white rounded-2xl border border-stone-100 p-6 text-center">
-            <p className="text-stone-500 text-sm">
-              Belum ada kelas yang ditetapkan untuk tahun ajaran ini.
-            </p>
-            <p className="text-stone-400 text-xs mt-1">
-              Hubungi admin untuk pengaturan kelas.
-            </p>
+          <div className="bg-surface rounded-2xl p-6 text-center">
+            <p className="text-ink-2 text-sm">Belum ada kelas yang ditetapkan untuk tahun ajaran ini.</p>
+            <p className="text-ink-3 text-xs mt-1">Hubungi admin untuk pengaturan kelas.</p>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </AppShell>
   )
 }

@@ -1,25 +1,45 @@
 @import "tailwindcss";
 
+/* Tokens — see DESIGN.md */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f5f1e6;
+  --panel: #ebe5d5;
+  --surface: #fbf8f1;
+  --line: #e0d8c4;
+  --ink: #1d211b;
+  --ink-2: #565a50;
+  --ink-3: #8b8d80;
+  --accent: #1f5b3a;
+  --accent-soft: #dde6d4;
+  --gold: #b3862c;
+  --warn: #b5532f;
+  --warn-soft: #f1dfd4;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-panel: var(--panel);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-serif), ui-serif, Georgia, serif;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-arabic: var(--font-arabic), "Amiri", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }

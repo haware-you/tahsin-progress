@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { ArrowUpRight, PencilLine, Eye, CalendarCog, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { Progress } from '@/components/ui'
-import { Reveal, GrowStack } from './landing-motion'
+import { Reveal, Entrance, GrowStack } from './landing-motion'
 
 const NAV = [
   { href: '#jalur', label: 'Jalur Belajar' },
@@ -11,7 +11,15 @@ const NAV = [
   { href: '#peran', label: 'Cara Kerja' },
 ]
 
-const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafal 30', 'Hafal 29']
+const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafalan Juz 30', 'Hafalan Juz 29']
+// Matches the example card above: this student is currently on Hafalan Juz 30.
+const CURRENT_STAGE = 7
+
+const TRACKS = [
+  { k: 'Iqro 1–6', v: 'Mengenal huruf dan membaca terbata-bata sampai lancar.' },
+  { k: 'Tadarus Juz 30', v: 'Membaca Juz 30 dengan lancar dan benar, belum menghafal.' },
+  { k: 'Hafalan Juz 30, lalu 29', v: 'Menghafal halaman demi halaman, dengan murajaah dari guru.' },
+]
 
 const ROLES = [
   {
@@ -24,7 +32,7 @@ const ROLES = [
     icon: Eye,
     role: 'Orang Tua',
     title: 'Melihat di hari yang sama',
-    body: 'Posisi terbaru, catatan ustadz/ustadzah, dan hasil murajaah — tanpa menunggu rapor atau grup WhatsApp.',
+    body: 'Posisi terbaru, catatan ustadz/ustadzah, dan hasil murajaah. Tanpa menunggu rapor atau grup WhatsApp.',
   },
   {
     icon: CalendarCog,
@@ -45,9 +53,9 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-paper text-ink">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-paper/85 backdrop-blur">
+      <header className="sticky top-0 z-30 bg-paper/95 border-b border-line/60">
         <div className="max-w-6xl mx-auto px-4 sm:px-8 h-20 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2" aria-label="Al Bayyinah — beranda">
+          <Link href="/" className="flex items-center gap-2 min-h-11" aria-label="Al Bayyinah, beranda">
             <span className="font-arabic text-3xl leading-none text-accent" aria-hidden>ب</span>
             <span className="font-serif text-xl">Al Bayyinah</span>
           </Link>
@@ -64,7 +72,7 @@ export default async function Home() {
           </nav>
           <Link
             href="/login"
-            className="inline-flex items-center gap-1.5 h-10 px-5 rounded-full bg-ink text-paper text-sm font-medium hover:bg-accent transition-colors"
+            className="inline-flex items-center gap-1.5 h-11 px-5 rounded-full bg-accent text-paper text-sm font-medium hover:bg-ink transition-colors"
           >
             Masuk <ArrowUpRight size={15} />
           </Link>
@@ -73,8 +81,8 @@ export default async function Home() {
 
       <main>
         {/* Hero */}
-        <section className="max-w-6xl mx-auto px-4 sm:px-8 pt-12 sm:pt-20 text-center">
-          <Reveal>
+        <section className="max-w-6xl mx-auto px-4 sm:px-8 pt-12 sm:pt-20 text-center overflow-x-clip">
+          <Entrance>
             <p dir="rtl" lang="ar" className="font-arabic text-2xl sm:text-3xl text-accent leading-[1.8]">
               بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ
             </p>
@@ -99,7 +107,7 @@ export default async function Home() {
                 Lihat jalur belajar
               </a>
             </div>
-          </Reveal>
+          </Entrance>
 
           {/* Growing record card */}
           <div className="mt-16 sm:mt-24 max-w-4xl mx-auto">
@@ -143,12 +151,8 @@ export default async function Home() {
         <section className="max-w-5xl mx-auto px-4 sm:px-8 py-28 sm:py-40 text-center">
           <Reveal>
             <p className="font-serif text-[30px] sm:text-5xl leading-[1.2] text-ink">
-              Menggantikan kertas, Excel, dan PDF bulanan dengan satu catatan{' '}
-              <span dir="rtl" lang="ar" className="font-arabic text-accent inline-block align-middle px-1">
-                تَعَلُّم
-              </span>{' '}
-              yang rapi — agar setiap halaman yang dibaca anak tercatat dan{' '}
-              <span className="text-accent">terlihat</span>.
+              Setiap halaman yang dibaca anak di kelas tercatat hari itu juga, lengkap dengan catatan ustadznya. Orang tua
+              tidak perlu menunggu rapor untuk <span className="text-accent">melihat perjalanannya</span>.
             </p>
           </Reveal>
         </section>
@@ -170,24 +174,26 @@ export default async function Home() {
                 {STAGES.map((s, i) => (
                   <li key={s} className="flex flex-col items-center gap-3 text-center">
                     <span
-                      className={`w-3 h-3 rounded-full ${i < 6 ? 'bg-gold' : i === 6 ? 'bg-accent-soft ring-2 ring-accent' : 'bg-accent'}`}
+                      className={`w-3 h-3 rounded-full ${
+                        i < CURRENT_STAGE ? 'bg-accent' : i === CURRENT_STAGE ? 'bg-accent-soft ring-2 ring-accent' : 'bg-line'
+                      }`}
+                      aria-hidden
                     />
-                    <span className="text-sm font-medium">{s}</span>
+                    <span className={`text-sm ${i === CURRENT_STAGE ? 'font-semibold text-accent' : i < CURRENT_STAGE ? 'font-medium' : 'text-ink-3'}`}>
+                      {s}
+                      {i === CURRENT_STAGE && <span className="sr-only"> (tahap saat ini)</span>}
+                    </span>
                   </li>
                 ))}
               </ol>
-              <div className="grid sm:grid-cols-3 gap-4 mt-14">
-                {[
-                  { k: 'Iqro 1–6', v: 'Mengenal huruf dan membaca terbata-bata sampai lancar.' },
-                  { k: 'Tadarus Juz 30', v: 'Membaca Juz 30 dengan lancar dan benar, belum menghafal.' },
-                  { k: 'Hafalan Juz 30 → 29', v: 'Menghafal halaman demi halaman, dengan murajaah dari guru.' },
-                ].map((x) => (
-                  <div key={x.k} className="rounded-3xl bg-surface p-6">
-                    <p className="font-serif text-2xl">{x.k}</p>
-                    <p className="text-sm text-ink-2 mt-2 leading-relaxed">{x.v}</p>
+              <dl className="grid sm:grid-cols-3 mt-16 border-t border-line">
+                {TRACKS.map((x, i) => (
+                  <div key={x.k} className={`py-6 sm:px-6 ${i > 0 ? 'border-t sm:border-t-0 sm:border-l border-line' : 'sm:pl-0'}`}>
+                    <dt className="font-serif text-2xl">{x.k}</dt>
+                    <dd className="text-sm text-ink-2 mt-2 leading-relaxed max-w-[34ch]">{x.v}</dd>
                   </div>
                 ))}
-              </div>
+              </dl>
             </Reveal>
           </div>
         </section>
@@ -206,7 +212,7 @@ export default async function Home() {
               <h3 className="font-serif text-2xl">Laporan perjalanan</h3>
               <div className="flex items-baseline justify-between mt-6">
                 <p className="text-sm text-ink-2">
-                  Tahap <span className="font-semibold text-ink">Hafal 30</span>
+                  Tahap <span className="font-semibold text-ink">Hafalan Juz 30</span>
                 </p>
                 <p className="font-serif text-4xl">
                   84<span className="text-base text-ink-3">%</span>
@@ -215,19 +221,11 @@ export default async function Home() {
               <div className="mt-4">
                 <Progress value={7.6} max={9} />
               </div>
-              <div className="grid grid-cols-2 gap-px bg-line rounded-2xl overflow-hidden mt-8">
-                {[
-                  { v: 42, l: 'sesi belajar' },
-                  { v: 12, l: 'surah dilalui' },
-                  { v: 5, l: 'murajaah lanjut' },
-                  { v: 4, l: 'minggu beruntun' },
-                ].map((a) => (
-                  <div key={a.l} className="bg-surface px-5 py-4">
-                    <p className="font-serif text-3xl">{a.v}</p>
-                    <p className="text-xs text-ink-3 mt-0.5">{a.l}</p>
-                  </div>
-                ))}
-              </div>
+              <p className="text-[15px] text-ink-2 leading-relaxed mt-8 pt-6 border-t border-line">
+                Sejak awal tahun: <span className="font-serif text-2xl text-ink">42</span> sesi belajar,{' '}
+                <span className="font-serif text-2xl text-ink">12</span> surah dilalui, dan{' '}
+                <span className="font-serif text-2xl text-ink">5</span> kali murajaah dinyatakan lanjut.
+              </p>
             </Reveal>
 
             <Reveal delay={120} className="rounded-[28px] bg-accent text-paper p-7 sm:p-9 flex flex-col">
@@ -247,9 +245,8 @@ export default async function Home() {
               </ol>
               <p className="text-sm text-paper/75 mt-4">3 dari 4 hari sekolah · 4 minggu berturut-turut</p>
               <div className="mt-auto pt-10">
-                <p className="text-xs uppercase tracking-[0.14em] text-paper/60">Lencana terbaru</p>
-                <p className="font-serif text-3xl mt-2">Khatam Tadarus</p>
-                <p className="text-sm text-paper/75 mt-1">Selesai membaca Juz 30 dengan lancar.</p>
+                <p className="text-xs uppercase tracking-[0.14em] text-paper/60">Pencapaian terakhir</p>
+                <p className="font-serif text-2xl leading-snug mt-2">Selesai membaca Juz 30 dengan lancar, lalu mulai menghafal.</p>
               </div>
             </Reveal>
           </div>
@@ -260,20 +257,19 @@ export default async function Home() {
           <Reveal className="text-center">
             <h2 className="font-serif text-4xl sm:text-6xl font-medium leading-[1.05]">Satu catatan, tiga peran</h2>
           </Reveal>
-          <ul className="grid md:grid-cols-3 gap-5 mt-14 md:items-start">
-            {ROLES.map(({ icon: Icon, role, title, body }, i) => (
-              <li key={role} className={i === 1 ? 'md:-mt-8' : 'md:mt-8'}>
-                <Reveal delay={i * 120} className="rounded-[28px] bg-surface p-7">
-                  <span className="w-12 h-12 rounded-full bg-accent-soft text-accent flex items-center justify-center">
-                    <Icon size={20} strokeWidth={1.75} />
-                  </span>
-                  <p className="text-xs font-medium uppercase tracking-[0.14em] text-ink-3 mt-6">{role}</p>
-                  <h3 className="font-serif text-2xl mt-1">{title}</h3>
-                  <p className="text-sm text-ink-2 leading-relaxed mt-3">{body}</p>
-                </Reveal>
-              </li>
-            ))}
-          </ul>
+          <Reveal className="mt-14">
+            <ol className="grid md:grid-cols-3 border-t border-line">
+              {ROLES.map(({ icon: Icon, role, title, body }, i) => (
+                <li key={role} className={`py-8 md:px-8 ${i > 0 ? 'border-t md:border-t-0 md:border-l border-line' : 'md:pl-0'}`}>
+                  <p className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.14em] text-accent">
+                    <Icon size={16} strokeWidth={1.75} aria-hidden /> {role}
+                  </p>
+                  <h3 className="font-serif text-2xl mt-3">{title}</h3>
+                  <p className="text-sm text-ink-2 leading-relaxed mt-3 max-w-[38ch]">{body}</p>
+                </li>
+              ))}
+            </ol>
+          </Reveal>
         </section>
 
         {/* Closing banner */}
@@ -283,7 +279,7 @@ export default async function Home() {
               خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ
             </p>
             <p className="text-sm text-paper/75 mt-4 max-w-md mx-auto">
-              &ldquo;Sebaik-baik kalian adalah yang belajar Al-Qur&apos;an dan mengajarkannya.&rdquo; — HR. Bukhari
+              &ldquo;Sebaik-baik kalian adalah yang belajar Al-Qur&apos;an dan mengajarkannya.&rdquo; (HR. Bukhari)
             </p>
             <Link
               href="/login"
@@ -291,7 +287,9 @@ export default async function Home() {
             >
               Masuk ke akun <ArrowUpRight size={16} />
             </Link>
-            <p className="text-xs text-paper/60 mt-5">Akun dibuat oleh admin sekolah.</p>
+            <p className="text-sm text-paper/75 mt-5 max-w-sm mx-auto">
+              Belum punya akun atau lupa kata sandi? Hubungi wali kelas atau admin sekolah.
+            </p>
           </Reveal>
         </section>
       </main>
@@ -301,14 +299,14 @@ export default async function Home() {
           <span className="font-arabic text-2xl leading-none text-accent" aria-hidden>ب</span>
           <span className="font-serif text-lg text-ink">Al Bayyinah School</span>
         </div>
-        <ul className="flex flex-wrap justify-center gap-x-8 gap-y-2">
+        <ul className="flex flex-wrap justify-center gap-x-6">
           {NAV.map((n) => (
             <li key={n.href}>
-              <a href={n.href} className="hover:text-ink transition-colors">{n.label}</a>
+              <a href={n.href} className="inline-flex items-center min-h-11 hover:text-ink transition-colors">{n.label}</a>
             </li>
           ))}
           <li>
-            <Link href="/login" className="hover:text-ink transition-colors">Masuk</Link>
+            <Link href="/login" className="inline-flex items-center min-h-11 hover:text-ink transition-colors">Masuk</Link>
           </li>
         </ul>
         <p>© {new Date().getFullYear()} Sistem Progres Tahsin</p>

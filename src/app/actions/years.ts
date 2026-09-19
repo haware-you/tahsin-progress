@@ -13,19 +13,19 @@ export async function createYear(
 ): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 'Sesi tidak valid.'
+  if (!user) return 'Sesi Anda sudah berakhir. Silakan masuk kembali.'
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return 'Akses ditolak.'
+  if (profile?.role !== 'admin') return 'Hanya admin yang dapat mengatur tahun ajaran.'
 
   const label = (formData.get('label') as string).trim()
-  if (!label) return 'Label tahun ajaran wajib diisi.'
-  if (!/^\d{4}\/\d{4}$/.test(label)) return 'Format: TTTT/TTTT (contoh: 2025/2026)'
+  if (!label) return 'Isi nama tahun ajaran, misalnya 2025/2026.'
+  if (!/^\d{4}\/\d{4}$/.test(label)) return 'Tulis tahun ajaran dengan format 2025/2026.'
 
   const { error } = await supabase.from('academic_years').insert({ label })
   if (error) {
-    if (error.code === '23505') return 'Tahun ajaran sudah ada.'
-    return 'Gagal membuat tahun ajaran.'
+    if (error.code === '23505') return 'Tahun ajaran ini sudah dibuat sebelumnya.'
+    return 'Tahun ajaran belum tersimpan. Coba lagi.'
   }
 
   revalidatePath('/admin/years')
@@ -38,13 +38,13 @@ export async function activateYear(
 ): Promise<string | null> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 'Sesi tidak valid.'
+  if (!user) return 'Sesi Anda sudah berakhir. Silakan masuk kembali.'
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return 'Akses ditolak.'
+  if (profile?.role !== 'admin') return 'Hanya admin yang dapat mengatur tahun ajaran.'
 
   const yearId = formData.get('year_id') as string
-  if (!yearId) return 'ID tahun ajaran tidak valid.'
+  if (!yearId) return 'Tahun ajaran tidak ditemukan. Muat ulang halaman lalu coba lagi.'
 
   // Deactivate current active year first (unique partial index requires this)
   await supabase.from('academic_years').update({ is_active: false }).eq('is_active', true)
@@ -54,7 +54,7 @@ export async function activateYear(
     .update({ is_active: true })
     .eq('id', yearId)
 
-  if (error) return 'Gagal mengaktifkan tahun ajaran.'
+  if (error) return 'Tahun ajaran belum aktif. Coba lagi.'
 
   revalidatePath('/admin/years')
   revalidatePath('/guru')
@@ -67,10 +67,10 @@ export async function rolloverEnrollments(
 ): Promise<RolloverResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Sesi tidak valid.' }
+  if (!user) return { ok: false, error: 'Sesi Anda sudah berakhir. Silakan masuk kembali.' }
 
   const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'admin') return { ok: false, error: 'Akses ditolak.' }
+  if (profile?.role !== 'admin') return { ok: false, error: 'Hanya admin yang dapat mengatur tahun ajaran.' }
 
   const fromYearId = formData.get('from_year_id') as string
   const toYearId = formData.get('to_year_id') as string

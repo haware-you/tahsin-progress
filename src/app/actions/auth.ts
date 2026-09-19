@@ -15,7 +15,10 @@ export async function login(
   })
 
   if (error) {
-    return 'Email atau kata sandi salah.'
+    if (error.status === 429) return 'Terlalu banyak percobaan masuk. Tunggu beberapa menit lalu coba lagi.'
+    if (error.code === 'invalid_credentials' || error.status === 400)
+      return 'Email atau kata sandi tidak cocok. Periksa ejaan email dan huruf besar/kecil pada kata sandi.'
+    return 'Belum bisa masuk. Periksa koneksi internet lalu coba lagi.'
   }
 
   redirect('/dashboard')

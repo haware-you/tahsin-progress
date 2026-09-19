@@ -44,7 +44,7 @@ export default function LoginPage() {
               Al-Qur&apos;an
             </h2>
             <p className="text-xs md:text-sm text-paper/75 leading-relaxed mt-1 md:mt-5 max-w-sm">
-              &ldquo;Sebaik-baik kalian adalah yang belajar Al-Qur&apos;an dan mengajarkannya.&rdquo; — HR. Bukhari
+              &ldquo;Sebaik-baik kalian adalah yang belajar Al-Qur&apos;an dan mengajarkannya.&rdquo; (HR. Bukhari)
             </p>
           </div>
         </section>
@@ -105,7 +105,7 @@ export default function LoginPage() {
                       {showPassword ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
                     </button>
                   </div>
-                  <p className="text-xs text-ink-3 mt-2 text-right">Lupa kata sandi? Hubungi admin sekolah.</p>
+                  <p className="text-xs text-ink-3 mt-2 text-right">Lupa kata sandi? Hubungi wali kelas atau admin sekolah.</p>
                 </div>
 
                 {error && (
@@ -117,16 +117,16 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={pending}
-                  className="w-full h-12 rounded-full bg-ink text-paper text-[15px] font-medium hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                  className="w-full h-12 rounded-full bg-accent text-paper text-[15px] font-medium hover:bg-ink disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
-                  {pending ? 'Memproses…' : 'Masuk'}
+                  {pending ? 'Sedang masuk…' : 'Masuk'}
                 </button>
               </form>
             </div>
           </div>
 
           <p className="text-center text-sm text-ink-3">
-            Belum punya akun? <span className="text-ink font-medium">Akun dibuat oleh admin sekolah.</span>
+            Belum punya akun? <span className="text-ink font-medium">Hubungi wali kelas atau admin sekolah.</span>
           </p>
         </section>
       </div>

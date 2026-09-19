@@ -58,7 +58,7 @@ export default function CsvImportForm() {
             disabled={isPreviewing || !fileName}
             className="w-full bg-stone-800 text-white font-semibold py-3 rounded-2xl text-sm disabled:opacity-40 min-h-[44px] cursor-pointer"
           >
-            {isPreviewing ? 'Memproses...' : 'Pratinjau Data'}
+            {isPreviewing ? 'Membaca file…' : 'Pratinjau Data'}
           </button>
         </form>
       </div>
@@ -68,15 +68,15 @@ export default function CsvImportForm() {
         <div className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
             <p className="text-sm font-semibold text-stone-800">
-              Hasil Pratinjau — {preview.rows.length} baris
+              Hasil pratinjau: {preview.rows.length} baris
             </p>
             <div className="flex gap-2">
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                {preview.validCount} valid
+                {preview.validCount} siap diimpor
               </span>
               {preview.errorCount > 0 && (
                 <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
-                  {preview.errorCount} error
+                  {preview.errorCount} perlu diperbaiki
                 </span>
               )}
             </div>
@@ -103,11 +103,11 @@ export default function CsvImportForm() {
                   </div>
                   {row.errors.length === 0 ? (
                     <span className="shrink-0 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
-                      OK
+                      Siap
                     </span>
                   ) : (
                     <span className="shrink-0 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
-                      Error
+                      Perlu diperbaiki
                     </span>
                   )}
                 </div>
@@ -137,7 +137,7 @@ export default function CsvImportForm() {
 
           <form action={commitAction}>
             <p className="text-xs text-stone-500 mb-3">
-              Klik <strong>Impor Sekarang</strong> untuk menyimpan {preview.validCount} siswa valid ke database.
+              Hanya {preview.validCount} baris yang siap akan disimpan. Baris bertanda merah dilewati; perbaiki di file CSV lalu impor ulang.
             </p>
             <input
               type="hidden"
@@ -160,12 +160,12 @@ export default function CsvImportForm() {
         >
           {result.ok ? (
             <>
-              <p className="font-semibold mb-1">Import berhasil!</p>
+              <p className="font-semibold mb-1">Impor selesai</p>
               <p>{result.created} siswa baru dibuat, {result.matched} siswa sudah terdaftar dan diperbarui.</p>
             </>
           ) : (
             <>
-              <p className="font-semibold mb-1">Import gagal</p>
+              <p className="font-semibold mb-1">Impor belum berhasil</p>
               <p>{result.error}</p>
             </>
           )}
@@ -182,7 +182,7 @@ function CommitButton({ isCommitting, validCount }: { isCommitting: boolean; val
       disabled={isCommitting}
       className="w-full bg-green-700 text-white font-semibold py-3 rounded-2xl text-sm disabled:opacity-40 min-h-[44px] cursor-pointer"
     >
-      {isCommitting ? 'Mengimpor...' : `Impor Sekarang (${validCount} siswa)`}
+      {isCommitting ? 'Mengimpor…' : `Impor Sekarang (${validCount} siswa)`}
     </button>
   )
 }

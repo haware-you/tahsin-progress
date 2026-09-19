@@ -86,26 +86,26 @@ export async function logProgress(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return 'Sesi tidak valid. Silakan login kembali.'
+  if (!user) return 'Sesi Anda sudah berakhir. Silakan masuk kembali.'
 
   const { data: teacher } = await supabase
     .from('teachers')
     .select('id')
     .eq('user_id', user.id)
     .single()
-  if (!teacher) return 'Akun guru tidak ditemukan.'
+  if (!teacher) return 'Akun ini belum terdaftar sebagai guru. Hubungi admin sekolah.'
 
   const { data: activeYear } = await supabase
     .from('academic_years')
     .select('id')
     .eq('is_active', true)
     .single()
-  if (!activeYear) return 'Tidak ada tahun ajaran aktif.'
+  if (!activeYear) return 'Belum ada tahun ajaran aktif. Minta admin mengaktifkannya terlebih dahulu.'
 
   const type = formData.get('type') as string
   const studentId = formData.get('student_id') as string
 
-  if (!studentId) return 'Data siswa tidak valid.'
+  if (!studentId) return 'Siswa tidak ditemukan. Muat ulang halaman lalu coba lagi.'
 
   if (type === 'iqro') {
     const iqroLevel = parseInt(formData.get('iqro_level') as string)
@@ -114,8 +114,8 @@ export async function logProgress(
 
     if (!iqroLevel || !iqroPage || isNaN(iqroLevel) || isNaN(iqroPage))
       return 'Level dan halaman Iqro wajib diisi.'
-    if (iqroLevel < 1 || iqroLevel > 6) return 'Level Iqro harus antara 1–6.'
-    if (iqroPage < 1) return 'Halaman harus lebih dari 0.'
+    if (iqroLevel < 1 || iqroLevel > 6) return 'Pilih level Iqro 1 sampai 6.'
+    if (iqroPage < 1) return 'Nomor halaman minimal 1.'
 
     const { error } = await supabase.from('progress_logs').insert({
       student_id: studentId,
@@ -127,7 +127,7 @@ export async function logProgress(
       notes,
     })
 
-    if (error) return 'Gagal menyimpan catatan. Coba lagi.'
+    if (error) return 'Catatan belum tersimpan. Periksa koneksi internet lalu coba lagi.'
 
     try {
       await tryAwardBadges(supabase, studentId, activeYear.id, 'iqro', iqroLevel, null)
@@ -151,7 +151,7 @@ export async function logProgress(
       notes,
     })
 
-    if (progressError) return 'Gagal menyimpan catatan. Coba lagi.'
+    if (progressError) return 'Catatan belum tersimpan. Periksa koneksi internet lalu coba lagi.'
 
     // Murajaah assessment (optional, hafalan only)
     const murajaah = type !== 'tadarus' && formData.get('murajaah') === 'true'
@@ -160,9 +160,9 @@ export async function logProgress(
       const reason = (formData.get('murajaah_reason') as string).trim()
 
       if (outcome !== 'lanjut' && outcome !== 'ulang')
-        return 'Hasil murajaah wajib dipilih.'
+        return 'Pilih hasil murajaah: Lanjut atau Ulang.'
       if (outcome === 'ulang' && !reason)
-        return 'Catatan wajib diisi jika hasil murajaah adalah Ulang.'
+        return 'Tuliskan alasan singkat mengapa murajaah perlu diulang.'
 
       const { error: assessmentError } = await supabase.from('assessments').insert({
         student_id: studentId,
@@ -174,7 +174,7 @@ export async function logProgress(
         reason: reason || '-',
       })
 
-      if (assessmentError) return 'Progres tersimpan, tapi gagal menyimpan murajaah. Coba lagi.'
+      if (assessmentError) return 'Progres sudah tersimpan, tetapi hasil murajaah belum. Simpan ulang hasil murajaahnya.'
     }
 
     try {
@@ -182,7 +182,7 @@ export async function logProgress(
     } catch {}
 
   } else {
-    return 'Tipe progres tidak valid.'
+    return 'Jenis catatan tidak dikenal. Muat ulang halaman lalu coba lagi.'
   }
 
   revalidatePath('/guru')

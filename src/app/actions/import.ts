@@ -155,33 +155,33 @@ export async function commitCsvImport(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Sesi tidak valid.' }
+  if (!user) return { ok: false, error: 'Sesi Anda sudah berakhir. Silakan masuk kembali.' }
 
   const { data: profile } = await supabase
     .from('users')
     .select('role')
     .eq('id', user.id)
     .single()
-  if (profile?.role !== 'admin') return { ok: false, error: 'Akses ditolak.' }
+  if (profile?.role !== 'admin') return { ok: false, error: 'Hanya admin yang dapat mengimpor data siswa.' }
 
   const previewJson = formData.get('preview_json') as string | null
-  if (!previewJson) return { ok: false, error: 'Data pratinjau tidak ditemukan.' }
+  if (!previewJson) return { ok: false, error: 'Pratinjau sudah tidak tersedia. Unggah ulang file lalu coba lagi.' }
 
   const { data: activeYear } = await supabase
     .from('academic_years')
     .select('id')
     .eq('is_active', true)
     .single()
-  if (!activeYear) return { ok: false, error: 'Tidak ada tahun ajaran aktif.' }
+  if (!activeYear) return { ok: false, error: 'Belum ada tahun ajaran aktif. Aktifkan tahun ajaran dulu sebelum mengimpor.' }
 
   let valid: ParsedRow[]
   try {
     valid = JSON.parse(previewJson) as ParsedRow[]
   } catch {
-    return { ok: false, error: 'Format data tidak valid.' }
+    return { ok: false, error: 'Data impor tidak terbaca. Unggah ulang file lalu coba lagi.' }
   }
 
-  if (valid.length === 0) return { ok: false, error: 'Tidak ada baris valid untuk diimpor.' }
+  if (valid.length === 0) return { ok: false, error: 'Tidak ada baris yang bisa diimpor. Perbaiki baris yang ditandai merah di pratinjau.' }
 
   let created = 0
   let matched = 0

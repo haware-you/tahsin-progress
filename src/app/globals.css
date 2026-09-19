@@ -43,3 +43,42 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Landing hero: one-time entrance. CSS-only so it runs before hydration and ends visible. */
+@keyframes hero-entrance {
+  from { opacity: 0; transform: translateY(12px); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-entrance { animation: hero-entrance 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+
+/* Landing record stack: back cards fan out to show earlier entries.
+   --f (0–1) is driven by scroll position (landing-motion.tsx); hover forces a full fan.
+   !important lets the hover rule beat the inline --f that scrolling writes. */
+.fan-stack {
+  --fan-x: 9%;
+  --fan-r: 6deg;
+}
+@media (min-width: 640px) {
+  .fan-stack { --fan-x: 9%; --fan-r: 7deg; }
+}
+.fan-layer {
+  transform-origin: 50% 100%;
+  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.fan-left {
+  transform: translate(calc(-1 * var(--fan-x) * var(--f, 0)), calc(2% * var(--f, 0))) rotate(calc(-1 * var(--fan-r) * var(--f, 0)));
+}
+.fan-right {
+  transform: translate(calc(0.9 * var(--fan-x) * var(--f, 0)), calc(1% * var(--f, 0))) rotate(calc(0.72 * var(--fan-r) * var(--f, 0)));
+}
+.fan-front {
+  transform: translateY(calc(-8px * var(--f, 0)));
+}
+@media (hover: hover) and (pointer: fine) {
+  .fan-stack:hover { --f: 1 !important; }
+  .fan-stack:hover .fan-layer { transition-duration: 650ms; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fan-layer { transition: none; }
+}

@@ -2,6 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export default async function proxy(request: NextRequest) {
+  // Dev-only design previews with mock data (see src/app/preview). 404s in production.
+  if (process.env.NODE_ENV === 'development' && request.nextUrl.pathname.startsWith('/preview')) {
+    return NextResponse.next()
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(

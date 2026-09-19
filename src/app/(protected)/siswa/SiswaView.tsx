@@ -158,7 +158,7 @@ export default function SiswaView({
       aside={aside}
     >
       {/* Hero */}
-      <section className="grid gap-10 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] xl:items-center">
+      <section className="grid gap-10 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] 2xl:items-center">
         <div>
           <h1 className="font-serif text-[40px] sm:text-5xl xl:text-[56px] font-medium leading-[1.05] text-ink">
             Assalamu&apos;alaikum,

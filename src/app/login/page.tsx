@@ -1,116 +1,134 @@
 'use client'
 
-import { useActionState } from 'react'
-import { login } from '@/app/actions/auth'
-import Image from 'next/image'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
+import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { login } from '@/app/actions/auth'
+
+// Faint eight-point star lattice for the quote panel.
+const PATTERN = `url("data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#f5f1e6" stroke-width="1"><rect x="18" y="18" width="28" height="28"/><rect x="18" y="18" width="28" height="28" transform="rotate(45 32 32)"/></svg>'
+)}")`
+
+const inputCls =
+  'w-full h-12 px-4 rounded-2xl bg-surface border border-line text-ink text-[15px] placeholder:text-ink-3 focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition'
 
 export default function LoginPage() {
   const [error, action, pending] = useActionState(login, null)
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white relative">
-      {/* Mobile background (visible only on mobile) */}
-      <div className="md:hidden absolute inset-0 z-0">
-        <Image
-          src="/login-illustration.png"
-          alt="Background"
-          fill
-          sizes="(max-width: 768px) 100vw, 0vw"
-          className="object-cover opacity-20"
-          priority
-        />
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px]" />
-      </div>
+    <div className="min-h-screen bg-paper p-0 md:p-4 lg:p-6 flex">
+      <div className="flex-1 flex flex-col md:flex-row md:rounded-[32px] overflow-hidden md:bg-surface md:shadow-[0_1px_2px_rgba(29,33,27,0.06)]">
+        {/* Quote panel */}
+        <section
+          className="relative md:w-[46%] bg-accent text-paper px-6 pt-6 pb-6 md:p-12 flex flex-col justify-between md:min-h-0 md:rounded-[28px] md:m-2"
+          aria-label="Kutipan"
+        >
+          <div className="absolute inset-0 opacity-[0.07] pointer-events-none md:rounded-[28px]" style={{ backgroundImage: PATTERN }} aria-hidden />
 
-      {/* Left Side: Form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-8 lg:p-16 relative z-10">
-        <div className="w-full max-w-sm">
-          <Link href="/" className="inline-flex items-center text-sm font-medium text-stone-500 hover:text-green-700 transition-colors mb-12">
-            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Kembali ke Beranda
-          </Link>
-
-          <div className="mb-10">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-green-700 mb-6 shadow-sm">
-              <span className="font-arabic text-xl text-white leading-none">ب</span>
-            </div>
-            <h1 className="text-3xl font-bold font-serif text-stone-900 tracking-tight">Selamat Datang</h1>
-            <p className="text-stone-500 text-base mt-2">Masuk ke Sistem Progres Tahsin Al Bayyinah.</p>
+          <div className="relative flex items-center gap-4">
+            <span className="text-[11px] font-medium tracking-[0.28em] uppercase">Sebuah Hikmah</span>
+            <span className="h-px w-24 bg-paper/50" />
           </div>
 
-          <form action={action} className="space-y-5">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-stone-700 mb-1.5">
-                Email
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                className="w-full px-4 py-3.5 rounded-xl border border-stone-200 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-base transition-shadow"
-                placeholder="nama@email.com"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-stone-700 mb-1.5">
-                Kata Sandi
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                className="w-full px-4 py-3.5 rounded-xl border border-stone-200 text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-base transition-shadow"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <p className="text-red-600 text-sm rounded-lg bg-red-50 px-3 py-2.5 border border-red-100">{error}</p>
-            )}
-
-            <button
-              type="submit"
-              disabled={pending}
-              className="w-full py-3.5 px-4 bg-green-700 text-white font-bold rounded-xl hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed transition-all text-base shadow-sm mt-2"
-            >
-              {pending ? 'Memproses...' : 'Masuk ke Akun'}
-            </button>
-          </form>
-
-          <div className="mt-10 pt-6 border-t border-stone-100">
-            <p className="text-sm text-stone-500">
-              Belum punya akun? <span className="text-green-700 font-semibold cursor-help" title="Silakan hubungi admin sekolah">Dibuat oleh admin.</span>
+          <div className="relative mt-4 md:mt-0">
+            <p dir="rtl" lang="ar" className="font-arabic text-2xl md:text-4xl leading-[1.9] text-paper/90">
+              خَيْرُكُمْ مَنْ تَعَلَّمَ الْقُرْآنَ وَعَلَّمَهُ
+            </p>
+            <h2 className="hidden md:block font-serif text-5xl lg:text-6xl leading-[1.02] font-medium mt-4">
+              Belajar dan
+              <br />
+              Mengajarkan
+              <br />
+              Al-Qur&apos;an
+            </h2>
+            <p className="text-xs md:text-sm text-paper/75 leading-relaxed mt-1 md:mt-5 max-w-sm">
+              &ldquo;Sebaik-baik kalian adalah yang belajar Al-Qur&apos;an dan mengajarkannya.&rdquo; — HR. Bukhari
             </p>
           </div>
-        </div>
-      </div>
+        </section>
 
-      {/* Right Side: Illustration */}
-      <div className="hidden md:flex w-1/2 bg-green-50 p-12 items-center justify-center relative overflow-hidden">
-        {/* Decorative background shapes */}
-        <div className="absolute top-0 right-0 w-full h-full opacity-50 pointer-events-none">
-          <div className="absolute top-1/4 right-1/4 w-64 h-64 bg-amber-200 rounded-full mix-blend-multiply filter blur-3xl" />
-          <div className="absolute bottom-1/4 left-1/4 w-80 h-80 bg-green-200 rounded-full mix-blend-multiply filter blur-3xl" />
-        </div>
-        
-        <div className="relative w-full max-w-[480px] aspect-[4/5] rounded-[2.5rem] overflow-hidden shadow-2xl border-8 border-white/60 bg-white">
-           <Image
-             src="/login-illustration.png"
-             alt="Al Bayyinah Illustration"
-             fill
-             sizes="(min-width: 768px) 50vw, 0vw"
-             className="object-cover"
-             priority
-           />
-        </div>
+        {/* Form */}
+        <section className="flex-1 flex flex-col px-6 py-8 md:px-12 md:py-10">
+          <header className="flex items-center justify-between">
+            <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-ink-3 hover:text-ink transition-colors">
+              <ArrowLeft size={16} /> Beranda
+            </Link>
+            <div className="flex items-center gap-2">
+              <span className="font-arabic text-2xl leading-none text-accent" aria-hidden>ب</span>
+              <span className="font-serif text-xl text-ink">Al Bayyinah</span>
+            </div>
+          </header>
+
+          <div className="flex-1 flex items-center justify-center py-10 md:py-12">
+            <div className="w-full max-w-sm">
+              <div className="text-center mb-10">
+                <h1 className="font-serif text-[40px] md:text-5xl font-medium leading-[1.05] text-ink">Selamat Datang</h1>
+                <p className="text-[15px] text-ink-2 mt-3">Masukkan email dan kata sandi untuk membuka akun Anda.</p>
+              </div>
+
+              <form action={action} className="space-y-5">
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-ink mb-2">Email</label>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    required
+                    autoComplete="email"
+                    placeholder="nama@email.com"
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="password" className="block text-sm font-medium text-ink mb-2">Kata Sandi</label>
+                  <div className="relative">
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="current-password"
+                      placeholder="Masukkan kata sandi"
+                      className={`${inputCls} pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                      aria-pressed={showPassword}
+                      aria-controls="password"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center text-ink-3 hover:text-ink hover:bg-panel transition-colors cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={18} strokeWidth={1.75} /> : <Eye size={18} strokeWidth={1.75} />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-ink-3 mt-2 text-right">Lupa kata sandi? Hubungi admin sekolah.</p>
+                </div>
+
+                {error && (
+                  <p role="alert" className="text-sm text-warn bg-warn-soft rounded-2xl px-4 py-3">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="w-full h-12 rounded-full bg-ink text-paper text-[15px] font-medium hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  {pending ? 'Memproses…' : 'Masuk'}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-ink-3">
+            Belum punya akun? <span className="text-ink font-medium">Akun dibuat oleh admin sekolah.</span>
+          </p>
+        </section>
       </div>
     </div>
   )

@@ -104,7 +104,7 @@ Badges are displayed by `src/app/(protected)/siswa/Laporan.tsx`; add an icon for
 - ☐ **404 for logged-out users:** `src/proxy.ts` sends every unknown URL to `/login` when not signed in, so only signed-in users see `src/app/not-found.tsx`.
 
 - ☐ **Sub-pages not redesigned:** `/admin/import`, `/admin/users`, `/admin/years` still use the old stone/green styles. Wrap them in `AppShell` and apply DESIGN.md tokens.
-- ☐ **Landing page** (`src/app/page.tsx`) not redesigned; also has 2 lint errors (unescaped `"`).
+- ☐ **Sitemap:** add `src/app/sitemap.ts` (landing page only) + `sitemap:` line in `robots.ts` once the app has its real domain; submit in Google Search Console.
 - ☐ **Lint:** `react-hooks/purity` flags `Date.now()` in server pages (`admin/page.tsx`, `guru/page.tsx`, `siswa/page.tsx`, `preview/*`). Harmless in server components; either move to a `getNow()` helper or disable the rule for `page.tsx`.
 - ☐ **Lint:** `StudentRoster.tsx` calls `setState` in an effect when `selected` changes — refactor to set track/murajaah state in the click handler.
 - ☐ **Surah table:** `src/lib/quran.ts` page numbers were entered from memory — verify against the school's mushaf.

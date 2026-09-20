@@ -49,7 +49,21 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 
 ## P1 — Blocks onboarding / everyday use
 
-### ☐ 3. CSV import can't create login accounts
+### ☑ 3. CSV import can't create login accounts
+
+**Fixed 2026-09-20.** `src/lib/supabase/admin.ts` adds a service-role client and `src/lib/auth.ts` a shared `requireAdmin()` guard that every action touching it must pass first. On commit, rows whose email has no account get one via `auth.admin.createUser({ email_confirm: true })`; the existing `handle_new_user` trigger fills in `public.users` with the `student_parent` role.
+
+The generated passwords come back to the admin once, in a panel with **Unduh CSV** / **Salin** — they are never stored. Invite emails were the alternative but Supabase's built-in SMTP can't carry ~350 of them (see gap 4).
+
+Also fixed while in here: the commit loop used to `continue` silently when a class or user was missing, so rows vanished with no explanation. Every skip now records a reason and the result panel lists them.
+
+`/admin/users` gains a **Reset kata sandi** button (confirm → generate → shown once) for families who can't receive the self-service email. This is the part gap 4 left open.
+
+**Set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` and in Vercel** (server-only — never `NEXT_PUBLIC_`). Without it the app still runs: rows needing a new account are skipped with a clear reason, and the reset button reports the missing key.
+
+**Follow-up:** `npm i server-only` and import it at the top of `src/lib/supabase/admin.ts` and `src/lib/auth.ts`. Right now a runtime `window` check guards them; `server-only` would make an accidental client import a build error instead. (Couldn't be installed in the sandbox this was written in — no network.)
+
+<details><summary>Original report</summary>
 
 **Flow:** Admin uploads student CSV → rows committed → families log in.
 
@@ -60,6 +74,8 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 - Create `src/lib/supabase/admin.ts` with a service-role client, used only inside admin-checked server actions.
 - On commit: `auth.admin.createUser({ email, password: generated, email_confirm: true })`, then insert `users` + `students` rows.
 - Output: downloadable CSV of generated credentials, or send invite emails (`auth.admin.inviteUserByEmail`) instead of passwords.
+
+</details>
 
 ### ☑ 4. No password reset
 

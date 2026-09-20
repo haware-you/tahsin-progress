@@ -1,6 +1,8 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient, SERVICE_KEY_MISSING } from '@/lib/supabase/admin'
+import { requireAdmin, generatePassword } from '@/lib/auth'
 import { JUZ_RANGE } from '@/lib/quran'
 
 type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
@@ -33,8 +35,28 @@ export type ImportPreview = {
   errorCount: number
 }
 
+/** A login the import just provisioned. Shown to the admin once, never stored. */
+export type NewCredential = {
+  nama_siswa: string
+  email: string
+  password: string
+}
+
+export type SkippedRow = {
+  rowNum: number
+  nama_siswa: string
+  reason: string
+}
+
 export type ImportResult =
-  | { ok: true; created: number; matched: number }
+  | {
+      ok: true
+      created: number
+      matched: number
+      accountsCreated: number
+      credentials: NewCredential[]
+      skipped: SkippedRow[]
+    }
   | { ok: false; error: string }
 
 function parseCsv(text: string): CsvRow[] {
@@ -114,18 +136,8 @@ export async function previewCsvImport(
   _prev: ImportPreview | null,
   formData: FormData
 ): Promise<ImportPreview> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { rows: [], validCount: 0, errorCount: 0 }
-
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-  if (profile?.role !== 'admin') return { rows: [], validCount: 0, errorCount: 0 }
+  const admin = await requireAdmin()
+  if (!admin.ok) return { rows: [], validCount: 0, errorCount: 0 }
 
   const file = formData.get('csv_file') as File | null
   if (!file || file.size === 0) return { rows: [], validCount: 0, errorCount: 0 }
@@ -154,18 +166,14 @@ export async function commitCsvImport(
   _prev: ImportResult | null,
   formData: FormData
 ): Promise<ImportResult> {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) return { ok: false, error: 'Sesi Anda sudah berakhir. Silakan masuk kembali.' }
+  const guard = await requireAdmin()
+  if (!guard.ok) return { ok: false, error: guard.error }
 
-  const { data: profile } = await supabase
-    .from('users')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-  if (profile?.role !== 'admin') return { ok: false, error: 'Hanya admin yang dapat mengimpor data siswa.' }
+  const supabase = await createClient()
+
+  // Needed to create logins for families that don't have one yet. Reached only
+  // after the admin check above.
+  const adminDb = createAdminClient()
 
   const previewJson = formData.get('preview_json') as string | null
   if (!previewJson) return { ok: false, error: 'Pratinjau sudah tidak tersedia. Unggah ulang file lalu coba lagi.' }
@@ -188,6 +196,12 @@ export async function commitCsvImport(
 
   let created = 0
   let matched = 0
+  let accountsCreated = 0
+  const credentials: NewCredential[] = []
+  const skipped: SkippedRow[] = []
+
+  const skip = (row: ParsedRow, reason: string) =>
+    skipped.push({ rowNum: row.rowNum, nama_siswa: row.nama_siswa, reason })
 
   for (const row of valid) {
     const { data: existingClass } = await supabase
@@ -197,17 +211,45 @@ export async function commitCsvImport(
       .eq('academic_year_id', activeYear.id)
       .single()
 
-    if (!existingClass) continue
+    if (!existingClass) {
+      skip(row, `Kelas "${row.kelas}" belum ada di tahun ajaran aktif`)
+      continue
+    }
 
     const { data: existingAuthUsers } = await supabase
       .from('users')
       .select('id')
       .eq('email', row.email_akun)
 
-    if (!existingAuthUsers || existingAuthUsers.length === 0) continue
+    let userId = existingAuthUsers?.[0]?.id ?? null
 
-    const userId = existingAuthUsers[0].id
-    matched++
+    if (userId) {
+      matched++
+    } else {
+      // No login yet — provision one. `handle_new_user` (a trigger on
+      // auth.users) creates the matching public.users row with the
+      // student_parent role, so only the auth user is created here.
+      if (!adminDb) {
+        skip(row, `Belum punya akun login dan tidak bisa dibuatkan: ${SERVICE_KEY_MISSING}`)
+        continue
+      }
+
+      const password = generatePassword()
+      const { data: newUser, error: createError } = await adminDb.auth.admin.createUser({
+        email: row.email_akun,
+        password,
+        email_confirm: true,
+      })
+
+      if (createError || !newUser?.user) {
+        skip(row, `Akun login gagal dibuat: ${createError?.message ?? 'penyebab tidak diketahui'}`)
+        continue
+      }
+
+      userId = newUser.user.id
+      accountsCreated++
+      credentials.push({ nama_siswa: row.nama_siswa, email: row.email_akun, password })
+    }
 
     let studentId: string | null = null
     const { data: existingStudent } = await supabase
@@ -224,17 +266,24 @@ export async function commitCsvImport(
         .insert({ user_id: userId, name: row.nama_siswa })
         .select('id')
         .single()
-      if (studentError || !newStudent) continue
+      if (studentError || !newStudent) {
+        skip(row, `Data siswa gagal disimpan: ${studentError?.message ?? 'penyebab tidak diketahui'}`)
+        continue
+      }
       studentId = newStudent.id
       created++
     }
 
-    await supabase
+    const { error: enrollError } = await supabase
       .from('enrollments')
       .upsert(
         { student_id: studentId, class_id: existingClass.id, academic_year_id: activeYear.id },
         { onConflict: 'student_id,academic_year_id' }
       )
+    if (enrollError) {
+      skip(row, `Pendaftaran ke kelas gagal: ${enrollError.message}`)
+      continue
+    }
 
     // Insert opening progress log
     if (row.track === 'iqro' && row.iqro_level && row.iqro_halaman) {
@@ -259,5 +308,5 @@ export async function commitCsvImport(
     }
   }
 
-  return { ok: true, created, matched }
+  return { ok: true, created, matched, accountsCreated, credentials, skipped }
 }

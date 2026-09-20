@@ -1,7 +1,13 @@
 'use client'
 
 import { useActionState, useRef, useState } from 'react'
-import { previewCsvImport, commitCsvImport, type ImportPreview, type ImportResult } from '@/app/actions/import'
+import {
+  previewCsvImport,
+  commitCsvImport,
+  type ImportPreview,
+  type ImportResult,
+  type NewCredential,
+} from '@/app/actions/import'
 
 export default function CsvImportForm() {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -161,7 +167,10 @@ export default function CsvImportForm() {
           {result.ok ? (
             <>
               <p className="font-semibold mb-1">Impor selesai</p>
-              <p>{result.created} siswa baru dibuat, {result.matched} siswa sudah terdaftar dan diperbarui.</p>
+              <p>
+                {result.created} siswa baru dibuat, {result.matched} siswa sudah terdaftar dan
+                diperbarui, {result.accountsCreated} akun login baru dibuatkan.
+              </p>
             </>
           ) : (
             <>
@@ -171,6 +180,111 @@ export default function CsvImportForm() {
           )}
         </div>
       )}
+
+      {result?.ok && result.credentials.length > 0 && (
+        <CredentialsPanel credentials={result.credentials} />
+      )}
+
+      {result?.ok && result.skipped.length > 0 && (
+        <div className="bg-white rounded-2xl border border-amber-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-amber-100 bg-amber-50">
+            <p className="text-sm font-semibold text-amber-900">
+              {result.skipped.length} baris dilewati
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5">
+              Perbaiki penyebabnya lalu impor ulang hanya baris-baris ini.
+            </p>
+          </div>
+          <ul className="divide-y divide-stone-100 max-h-60 overflow-y-auto">
+            {result.skipped.map((row) => (
+              <li key={row.rowNum} className="px-5 py-3">
+                <p className="text-sm font-medium text-stone-800">
+                  <span className="text-stone-400 text-xs mr-1">#{row.rowNum}</span>
+                  {row.nama_siswa || '(nama kosong)'}
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">{row.reason}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Provisioned logins, shown once. The passwords exist nowhere else — once this
+ * panel is gone the only way back in is an admin reset.
+ */
+function CredentialsPanel({ credentials }: { credentials: NewCredential[] }) {
+  const [copied, setCopied] = useState(false)
+
+  // Quote every field: a name containing a comma would otherwise shift the
+  // password into the wrong column of the sheet the admin hands out.
+  const cell = (v: string) => `"${v.replace(/"/g, '""')}"`
+  const csv = [
+    'nama_siswa,email,kata_sandi',
+    ...credentials.map((c) => [c.nama_siswa, c.email, c.password].map(cell).join(',')),
+  ].join('\r\n')
+
+  const download = () => {
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `akun-baru-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(csv)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-green-200 overflow-hidden">
+      <div className="px-5 py-4 border-b border-green-100 bg-green-50">
+        <p className="text-sm font-semibold text-green-900">
+          {credentials.length} akun login baru
+        </p>
+        <p className="text-xs text-green-800 mt-1 leading-relaxed">
+          Simpan daftar ini sekarang — kata sandi tidak bisa ditampilkan lagi setelah
+          halaman ditutup. Bagikan lewat jalur pribadi ke masing-masing keluarga, dan
+          minta mereka menggantinya setelah masuk pertama kali.
+        </p>
+      </div>
+
+      <div className="px-5 py-3 flex gap-2">
+        <button
+          type="button"
+          onClick={download}
+          className="flex-1 bg-green-700 text-white font-semibold py-2.5 rounded-xl text-xs min-h-[44px] cursor-pointer"
+        >
+          Unduh CSV
+        </button>
+        <button
+          type="button"
+          onClick={copy}
+          className="flex-1 bg-stone-100 text-stone-700 font-semibold py-2.5 rounded-xl text-xs min-h-[44px] cursor-pointer"
+        >
+          {copied ? 'Tersalin' : 'Salin'}
+        </button>
+      </div>
+
+      <ul className="divide-y divide-stone-100 max-h-60 overflow-y-auto border-t border-stone-100">
+        {credentials.map((c) => (
+          <li key={c.email} className="px-5 py-3">
+            <p className="text-sm font-medium text-stone-800 truncate">{c.nama_siswa}</p>
+            <p className="text-xs text-stone-400 truncate">{c.email}</p>
+            <p className="font-mono text-sm text-stone-900 mt-1 select-all">{c.password}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

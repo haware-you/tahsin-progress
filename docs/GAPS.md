@@ -61,7 +61,19 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 - On commit: `auth.admin.createUser({ email, password: generated, email_confirm: true })`, then insert `users` + `students` rows.
 - Output: downloadable CSV of generated credentials, or send invite emails (`auth.admin.inviteUserByEmail`) instead of passwords.
 
-### ☐ 4. No password reset
+### ☑ 4. No password reset
+
+**Fixed 2026-09-20.** `/login/lupa` (request a link) → recovery email → `/auth/reset` (route handler, exchanges the token for a session) → `/login/reset` (set the new password) → `/dashboard`. `requestPasswordReset()` and `updatePassword()` live in `src/app/actions/auth.ts`; the three auth screens now share `src/app/login/AuthShell.tsx`. `src/proxy.ts` lets `/login/lupa`, `/login/reset` and `/auth/reset` through unauthenticated.
+
+**Two things to set before it works in production:**
+1. Add `<site>/auth/reset` to **Authentication → URL Configuration → Redirect URLs** in the Supabase dashboard, for every environment (localhost, preview, production). Without it the emailed link silently lands on the Site URL instead.
+2. Set `NEXT_PUBLIC_SITE_URL` in Vercel. Without it the redirect origin is derived from request headers, which is right in dev but fragile behind a proxy.
+
+Supabase's built-in SMTP allows only a few emails per hour — fine for testing, but the school will need a real SMTP provider (Authentication → Emails → SMTP Settings) before ~350 families use this. The email template is also in English by default; translate it to Bahasa Indonesia.
+
+Admin-triggered resets from `/admin/users` still need the service-role client from gap 3, so that part is **not** done.
+
+<details><summary>Original report</summary>
 
 `/login` now just says "Lupa kata sandi? Hubungi admin sekolah." Every forgotten password becomes an admin task.
 
@@ -70,6 +82,8 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 - `/login/reset` page → `supabase.auth.updateUser({ password })`.
 - Allow `/login/*` through the auth redirect in `src/proxy.ts` (currently only exactly `/login` is public).
 - Admin side: "Reset kata sandi" button in `/admin/users` (needs the service-role client from gap 3).
+
+</details>
 
 ### ☐ 5. Admin can't log progress
 

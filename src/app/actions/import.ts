@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { JUZ_RANGE } from '@/lib/quran'
 
 type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
@@ -85,12 +86,14 @@ function validateRows(rawRows: CsvRow[]): ParsedRow[] {
         errors.push('iqro_halaman harus angka positif')
     } else if (track === 'tadarus' || track === 'juz30') {
       juzHalaman = parseInt(r.juz_halaman)
-      if (isNaN(juzHalaman) || juzHalaman < 582 || juzHalaman > 604)
-        errors.push('juz_halaman untuk Tadarus/Juz 30 harus antara 582–604')
+      const r30 = JUZ_RANGE[track]
+      if (isNaN(juzHalaman) || juzHalaman < r30.min || juzHalaman > r30.max)
+        errors.push(`juz_halaman untuk Tadarus/Juz 30 harus antara ${r30.min}–${r30.max}`)
     } else if (track === 'juz29') {
       juzHalaman = parseInt(r.juz_halaman)
-      if (isNaN(juzHalaman) || juzHalaman < 562 || juzHalaman > 582)
-        errors.push('juz_halaman untuk Juz 29 harus antara 562–582')
+      const r29 = JUZ_RANGE.juz29
+      if (isNaN(juzHalaman) || juzHalaman < r29.min || juzHalaman > r29.max)
+        errors.push(`juz_halaman untuk Juz 29 harus antara ${r29.min}–${r29.max}`)
     }
 
     return {

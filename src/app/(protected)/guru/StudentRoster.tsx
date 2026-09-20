@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useActionState } from 'react'
 import { logProgress } from '@/app/actions/progress'
 import { initials } from '@/lib/format'
+import { JUZ_RANGE } from '@/lib/quran'
 
 type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
@@ -22,12 +23,6 @@ export type StudentWithProgress = {
 }
 
 type Filter = 'semua' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'evaluasi'
-
-const JUZ_RANGE: Record<string, { min: number; max: number; label: string }> = {
-  tadarus: { min: 582, max: 604, label: 'Tadarus Juz 30' },
-  juz30: { min: 582, max: 604, label: 'Hafalan Juz 30' },
-  juz29: { min: 562, max: 582, label: 'Hafalan Juz 29' },
-}
 
 function progressLabel(p: StudentWithProgress['latestProgress']): string {
   if (!p) return 'Belum ada catatan'

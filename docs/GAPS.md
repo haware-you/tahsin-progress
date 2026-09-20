@@ -13,7 +13,11 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 `supabase/migrations/20260919000001_tadarus_track.sql` adds the `tadarus` progress type and the *Khatam Tadarus* badge. Until it's pushed (`npx supabase db push`), saving a Tadarus log fails with an enum error. The demo seed has no tadarus students yet — add some if you need demo data.
 
 
-### ☐ 1. Badges are never awarded when a teacher logs progress
+### ☑ 1. Badges are never awarded when a teacher logs progress
+
+**Fixed 2026-09-20** — option B. `supabase/migrations/20260920000001_badge_award_trigger.sql` adds `award_badge()` / `award_badges_for_student()` (both `SECURITY DEFINER`) and an `AFTER INSERT` trigger on `progress_logs`, plus a backfill over existing logs. The client-side `awardBadge()` / `tryAwardBadges()` are gone from `src/app/actions/progress.ts`. **Still needs `npx supabase db push`.**
+
+<details><summary>Original report</summary>
 
 **Flow:** Teacher saves a log → `tryAwardBadges()` upserts into `student_badges` → parent should see the badge in *Laporan Perjalanan* on `/siswa`.
 
@@ -27,11 +31,19 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 
 **Verify:** log in as guru, log the 1st entry for a student → `/siswa` shows *Langkah Pertama* as earned.
 
-### ☐ 2. Juz 29 page range is inconsistent
+</details>
+
+### ☑ 2. Juz 29 page range is inconsistent
+
+**Fixed 2026-09-20** — `JUZ_RANGE` in `src/lib/quran.ts` (juz29 = 562–581) is now the only definition; the local copies in `progress.ts`, `StudentRoster.tsx` and `import.ts` were deleted and all three import it. The trigger uses 581 for the *Khatam Juz 29* cutoff. The badge description no longer mentions page 582 (fixed in the tadarus migration).
+
+<details><summary>Original report</summary>
 
 `JUZ_PAGE_RANGE.juz29.max` is **582** in `src/app/actions/progress.ts` and `StudentRoster.tsx`, but page 582 is the first page of Juz 30 (An-Naba'). `src/lib/quran.ts` uses 562–581. Result: a teacher can log "Juz 29 page 582", and the *Khatam Juz 29* badge triggers on the wrong page.
 
 **Fix:** one shared `JUZ_RANGE` in `src/lib/quran.ts`, imported by the action, the roster form, and the report. Juz 29 = 562–581. Update the badge description seed ("halaman 582") accordingly.
+
+</details>
 
 ---
 

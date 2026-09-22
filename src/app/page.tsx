@@ -11,9 +11,9 @@ const NAV = [
   { href: '#peran', label: 'Cara Kerja' },
 ]
 
-const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafalan Juz 30', 'Hafalan Juz 29']
-// Matches the example card above: this student is currently on Hafalan Juz 30.
-const CURRENT_STAGE = 7
+const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafalan Juz 30', 'Hafalan Juz 29'] as const
+// Matches the example card above. Looked up by name; 'as const' makes a renamed stage a type error.
+const CURRENT_STAGE = STAGES.indexOf('Hafalan Juz 30')
 
 const TRACKS = [
   { k: 'Iqro 1–6', v: 'Mengenal huruf dan membaca terbata-bata sampai lancar.' },
@@ -110,7 +110,7 @@ export default async function Home() {
           </Entrance>
 
           {/* Growing record card */}
-          <div className="mt-16 sm:mt-24 max-w-4xl mx-auto">
+          <div className="mt-24 max-w-4xl mx-auto">
             <GrowStack>
               <div className="rounded-[32px] bg-surface shadow-[0_1px_2px_rgba(29,33,27,0.06)] p-7 sm:p-12 text-left grid gap-8 sm:grid-cols-[1.1fr_1fr] sm:items-center">
                 <div>

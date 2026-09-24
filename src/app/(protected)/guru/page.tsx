@@ -80,35 +80,27 @@ export default async function GuruPage({
         iqro_level: number | null
         iqro_page: number | null
         juz_page: number | null
+        surah_number: number | null
+        ayat: number | null
+        outcome: 'lanjut' | 'ulang'
         log_date: string | null
       }
 
       let logs: LogRow[] = []
-      let assessedStudentIds = new Set<string>()
 
       if (studentIds.length) {
-        const [logsResult, assessmentsResult] = await Promise.all([
-          supabase
-            .from('progress_logs')
-            .select('student_id, type, iqro_level, iqro_page, juz_page, log_date')
-            .in('student_id', studentIds)
-            .eq('academic_year_id', selectedYear?.id ?? '')
-            .order('log_date', { ascending: false })
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('assessments')
-            .select('student_id')
-            .in('student_id', studentIds)
-            .eq('academic_year_id', selectedYear?.id ?? ''),
-        ])
+        const { data } = await supabase
+          .from('progress_logs')
+          .select('student_id, type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome, log_date')
+          .in('student_id', studentIds)
+          .eq('academic_year_id', selectedYear?.id ?? '')
+          .order('log_date', { ascending: false })
+          .order('created_at', { ascending: false })
 
-        logs = (logsResult.data ?? []) as unknown as LogRow[]
+        logs = (data ?? []) as unknown as LogRow[]
         logs.forEach((l) => {
           if (l.log_date) weekCounts[l.log_date] = (weekCounts[l.log_date] ?? 0) + 1
         })
-        assessedStudentIds = new Set(
-          (assessmentsResult.data ?? []).map((a) => a.student_id as string)
-        )
       }
 
       const latestByStudent = new Map<string, LogRow>()
@@ -122,19 +114,20 @@ export default async function GuruPage({
           const s = (Array.isArray(raw) ? raw[0] : raw) as { id: string; name: string } | null
           const log = latestByStudent.get(e.student_id as string) ?? null
           const isInactive = !log?.log_date || new Date(log.log_date) < inactiveCutoff
-          const hasAssessment = assessedStudentIds.has(e.student_id as string)
 
           return {
             id: s?.id ?? (e.student_id as string),
             name: s?.name ?? '—',
             isInactive,
-            hasAssessment,
+            needsRepeat: log?.outcome === 'ulang',
             latestProgress: log
               ? {
                   type: log.type as 'iqro' | 'tadarus' | 'juz30' | 'juz29',
                   iqro_level: log.iqro_level,
                   iqro_page: log.iqro_page,
                   juz_page: log.juz_page,
+                  surah_number: log.surah_number,
+                  ayat: log.ayat,
                   log_date: log.log_date,
                 }
               : null,

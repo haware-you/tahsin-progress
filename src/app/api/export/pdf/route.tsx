@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { positionLabel } from '@/lib/quran'
 import { Document, Page, Text, View, StyleSheet, Font, renderToBuffer } from '@react-pdf/renderer'
 import path from 'path'
 import React from 'react'
@@ -150,6 +151,9 @@ type ProgressLog = {
   iqro_level: number | null
   iqro_page: number | null
   juz_page: number | null
+  surah_number: number | null
+  ayat: number | null
+  outcome: string
   notes: string | null
 }
 
@@ -161,10 +165,8 @@ type Assessment = {
   juz_page: number | null
 }
 
-function positionLabel(log: ProgressLog): string {
-  if (log.type === 'iqro') return `Iqro ${log.iqro_level}, Hal. ${log.iqro_page}`
-  const label = JUZ_LABEL[log.type] ?? log.type
-  return `${label} Hal. ${log.juz_page ?? '—'}`
+function logPosition(log: ProgressLog): string {
+  return positionLabel(log, ', ') + (log.outcome === 'ulang' ? ' (U)' : '')
 }
 
 function formatDate(dateStr: string): string {
@@ -236,7 +238,7 @@ function PdfDocument({
                 <View key={i} style={styles.tableRow}>
                   <Text style={styles.colDate}>{formatDate(log.log_date)}</Text>
                   <Text style={styles.colType}>{log.type === 'iqro' ? 'Iqro' : (JUZ_LABEL[log.type] ?? log.type)}</Text>
-                  <Text style={styles.colPos}>{positionLabel(log)}</Text>
+                  <Text style={styles.colPos}>{logPosition(log)}</Text>
                   <Text style={styles.colNotes}>{log.notes ?? '—'}</Text>
                 </View>
               ))}
@@ -364,7 +366,7 @@ export async function GET(req: NextRequest) {
   // Progress logs
   const { data: logsData } = await supabase
     .from('progress_logs')
-    .select('log_date, type, iqro_level, iqro_page, juz_page, notes')
+    .select('log_date, type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome, notes')
     .eq('student_id', studentId)
     .eq('academic_year_id', resolvedYearId)
     .order('log_date', { ascending: false })

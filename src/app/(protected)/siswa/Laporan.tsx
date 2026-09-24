@@ -1,15 +1,6 @@
-import { Sprout, BookCheck, BookOpenCheck, CalendarCheck, Lock, type LucideIcon } from 'lucide-react'
+import { Sprout, BookCheck, BookOpenCheck, CalendarCheck, Check, ChevronDown, type LucideIcon } from 'lucide-react'
 import { SectionTitle, Progress } from '@/components/ui'
-import { surahsBetween, JUZ_RANGE } from '@/lib/quran'
-import { computeStreak } from '@/lib/streak'
-
-type Log = {
-  log_date: string
-  type: 'iqro' | 'tadarus' | 'juz30' | 'juz29'
-  iqro_level: number | null
-  juz_page: number | null
-  is_opening_position: boolean
-}
+import type { Journey, JuzBar } from '@/lib/progress'
 
 export type Badge = {
   id: string
@@ -23,14 +14,77 @@ export type EarnedBadge = { badge_id: string; awarded_at: string }
 
 // Curriculum path: Iqro 1–6 → Tadarus Juz 30 (reading) → Hafalan Juz 30 → Hafalan Juz 29.
 const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafal 30', 'Hafal 29']
-const STAGE_START = { tadarus: 6, juz30: 7, juz29: 8 } as const
+// Nine labels don't fit side by side at 375 px, so phones get short ones.
+const STAGES_SHORT = ['1', '2', '3', '4', '5', '6', 'Tdr', 'H30', 'H29']
+const JUZ_STAGES = ['tadarus', 'juz30', 'juz29'] as const
 
-function stagePosition(log: Log | null): number {
-  if (!log) return 0
-  if (log.type === 'iqro') return Math.max(0, (log.iqro_level ?? 1) - 1)
-  const r = JUZ_RANGE[log.type]
-  const frac = Math.min(1, ((log.juz_page ?? r.min) - r.min) / (r.max - r.min + 1))
-  return STAGE_START[log.type] + frac
+/** Where the student is on the whole path, with the current juz's surahs one tap away. */
+export function Perjalanan({ journey }: { journey: Journey }) {
+  const current = Math.min(STAGES.length - 1, Math.floor(journey.position))
+  const juz: JuzBar | undefined =
+    current >= 6 ? journey.juz.find((j) => j.track === JUZ_STAGES[current - 6]) : undefined
+
+  return (
+    <section className="mt-14" id="perjalanan">
+      <SectionTitle>Perjalanan</SectionTitle>
+      <div className="rounded-[28px] bg-surface p-6 sm:p-8">
+        <p className="text-sm text-ink-2">
+          Tahap <span className="font-semibold text-ink">{STAGES[current]}</span>
+        </p>
+        <ol className="grid grid-cols-9 mt-4 text-center">
+          {STAGES.map((s, i) => (
+            <li key={s} className="flex flex-col items-center gap-1.5">
+              <span
+                className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                  i < current ? 'bg-accent text-surface' : i === current ? 'bg-gold ring-4 ring-gold/20' : 'bg-line'
+                }`}
+              >
+                {i < current && <Check size={12} strokeWidth={3} aria-label="Selesai" />}
+              </span>
+              <span
+                className={`text-[10px] sm:text-[11px] leading-tight ${i === current ? 'text-ink font-semibold' : 'text-ink-3'}`}
+              >
+                <span className="sm:hidden">{STAGES_SHORT[i]}</span>
+                <span className="hidden sm:inline">{s}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+
+        {juz && (
+          <details className="group mt-6 border-t border-line pt-4">
+            <summary className="list-none cursor-pointer flex items-center justify-between gap-3 min-h-[44px] text-sm text-ink-2 [&::-webkit-details-marker]:hidden">
+              <span>
+                <span className="font-semibold text-ink">{juz.surahsDone}</span> dari {juz.surahs.length} surah{' '}
+                {juz.track === 'tadarus' ? 'lancar dibaca' : 'dihafal'}
+              </span>
+              <span className="flex items-center gap-1 text-xs text-ink-3 shrink-0">
+                Lihat per surah
+                <ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden />
+              </span>
+            </summary>
+            <ol className="mt-3 space-y-2">
+              {juz.surahs.map(({ surah, done }) => (
+                <li key={surah.number} className="grid grid-cols-[1fr_4.5rem_2.5rem] items-center gap-3">
+                  <span className={`text-xs truncate ${done ? 'text-ink' : 'text-ink-3'}`}>
+                    {surah.number}. {surah.latin}
+                  </span>
+                  <Progress value={done} max={surah.ayat} />
+                  <span className="text-[11px] text-ink-3 text-right">
+                    {done === surah.ayat ? (
+                      <Check size={13} className="text-accent inline" aria-label="Selesai" />
+                    ) : (
+                      `${done}/${surah.ayat}`
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </details>
+        )}
+      </div>
+    </section>
+  )
 }
 
 const ICONS: Record<string, LucideIcon> = {
@@ -40,147 +94,29 @@ const ICONS: Record<string, LucideIcon> = {
   weekly_streak: CalendarCheck,
 }
 
-export default function Laporan({
-  logs,
-  badges,
-  earned,
-  lanjutCount,
-}: {
-  logs: Log[]
-  badges: Badge[]
-  earned: EarnedBadge[]
-  lanjutCount: number
-}) {
-  const real = logs.filter((l) => !l.is_opening_position)
-  const latest = logs[0] ?? null
-  const pos = stagePosition(latest)
-  const current = Math.min(STAGES.length - 1, Math.floor(pos))
-  const pct = Math.round((pos / STAGES.length) * 100)
-  const streak = computeStreak(real.map((l) => l.log_date))
-  const earnedMap = new Map(earned.map((e) => [e.badge_id, e.awarded_at]))
-
-  // Hint towards each badge not yet earned.
-  function hint(b: Badge): { value: number; max: number } | null {
-    if (b.trigger_type === 'weekly_streak') return { value: Math.min(streak, 4), max: 4 }
-    if (b.trigger_type === 'iqro_level') {
-      if (latest?.type !== 'iqro') return latest ? { value: 6, max: 6 } : { value: 0, max: 6 }
-      return { value: latest.iqro_level ?? 0, max: 6 }
-    }
-    if (b.trigger_type === 'juz_complete') {
-      const juz = b.trigger_value as 'tadarus' | 'juz30' | 'juz29'
-      const r = JUZ_RANGE[juz]
-      const total = r.max - r.min + 1
-      if (latest?.type === juz) return { value: (latest.juz_page ?? r.min) - r.min + 1, max: total }
-      return { value: 0, max: total }
-    }
-    if (b.trigger_type === 'first_log') return { value: Math.min(real.length, 1), max: 1 }
-    return null
-  }
-
-  const surahDone =
-    latest && latest.type !== 'iqro' ? surahsBetween(JUZ_RANGE[latest.type].min, latest.juz_page ?? 0) : 0
-
-  const achievements = [
-    { v: real.length, l: 'sesi belajar' },
-    { v: surahDone, l: 'surah dilalui' },
-    { v: lanjutCount, l: 'murajaah lanjut' },
-    { v: streak, l: 'minggu beruntun' },
-  ]
+/** Badges already earned. Locked ones stay hidden: no progress bars towards rewards. */
+export function EarnedBadges({ badges, earned }: { badges: Badge[]; earned: EarnedBadge[] }) {
+  const at = new Map(earned.map((e) => [e.badge_id, e.awarded_at]))
+  const got = badges.filter((b) => at.has(b.id))
+  if (got.length === 0) return null
 
   return (
-    <section className="mt-14" id="laporan">
-      <SectionTitle>Laporan Perjalanan</SectionTitle>
-
-      {/* Journey */}
-      <div className="rounded-[28px] bg-surface p-6 sm:p-8">
-        <div className="flex items-baseline justify-between gap-4">
-          <p className="text-sm text-ink-2">
-            Tahap <span className="font-semibold text-ink">{STAGES[current]}</span>
-          </p>
-          <p className="font-serif text-3xl text-ink">
-            {pct}
-            <span className="text-base text-ink-3">%</span>
-          </p>
-        </div>
-        <div className="mt-4">
-          <Progress value={pos} max={STAGES.length} />
-        </div>
-        <ol className="grid grid-cols-9 mt-3 text-center">
-          {STAGES.map((s, i) => (
-            <li key={s} className="flex flex-col items-center gap-1.5">
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  i < current ? 'bg-accent' : i === current ? 'bg-gold ring-4 ring-gold/20' : 'bg-line'
-                }`}
-              />
-              <span
-                className={`text-[10px] sm:text-[11px] leading-tight ${
-                  i === current ? 'text-ink font-semibold' : 'text-ink-3'
-                }`}
-              >
-                {s.replace(' ', ' ')}
+    <section className="mt-14">
+      <SectionTitle>Lencana</SectionTitle>
+      <ul className="flex flex-wrap gap-2">
+        {got.map((b) => {
+          const Icon = ICONS[b.trigger_type] ?? BookCheck
+          const when = new Date(at.get(b.id)!).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+          return (
+            <li key={b.id} className="flex items-center gap-2.5 rounded-full bg-surface pl-1.5 pr-4 py-1.5" title={`${b.description} · ${when}`}>
+              <span className="w-8 h-8 rounded-full bg-accent text-surface flex items-center justify-center shrink-0">
+                <Icon size={15} strokeWidth={1.75} />
               </span>
+              <span className="text-sm font-medium text-ink">{b.name}</span>
             </li>
-          ))}
-        </ol>
-        <p className="text-xs text-ink-3 mt-5">Jalur: Iqro 1–6 → Tadarus Juz 30 (membaca) → Hafalan Juz 30 → Hafalan Juz 29.</p>
-      </div>
-
-      {/* Achievements */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-line rounded-2xl overflow-hidden mt-6">
-        {achievements.map((a) => (
-          <div key={a.l} className="bg-paper px-5 py-4">
-            <p className="font-serif text-3xl text-ink">{a.v}</p>
-            <p className="text-xs text-ink-3 mt-0.5">{a.l}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Badges */}
-      <h3 className="font-serif text-xl text-ink mt-10 mb-4">Lencana</h3>
-      {badges.length === 0 ? (
-        <p className="text-sm text-ink-3">Belum ada lencana yang diatur.</p>
-      ) : (
-        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {badges.map((b) => {
-            const at = earnedMap.get(b.id)
-            const Icon = ICONS[b.trigger_type] ?? BookCheck
-            const h = at ? null : hint(b)
-            return (
-              <li
-                key={b.id}
-                className={`flex gap-4 rounded-2xl px-5 py-4 ${at ? 'bg-surface' : 'bg-transparent border border-dashed border-line'}`}
-              >
-                <span
-                  className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
-                    at ? 'bg-accent text-surface ring-4 ring-gold/30' : 'bg-panel text-ink-3'
-                  }`}
-                >
-                  {at ? <Icon size={20} strokeWidth={1.75} /> : <Lock size={16} strokeWidth={1.75} />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className={`text-sm font-semibold ${at ? 'text-ink' : 'text-ink-2'}`}>{b.name}</p>
-                  <p className="text-xs text-ink-3 mt-0.5">{b.description}</p>
-                  {at ? (
-                    <p className="text-xs text-gold font-medium mt-2">
-                      Diraih {new Date(at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                    </p>
-                  ) : h ? (
-                    <div className="mt-2.5 flex items-center gap-3">
-                      <div className="flex-1">
-                        <Progress value={h.value} max={h.max} />
-                      </div>
-                      <span className="text-[11px] text-ink-3 shrink-0">
-                        {h.value}/{h.max}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+          )
+        })}
+      </ul>
     </section>
   )
 }

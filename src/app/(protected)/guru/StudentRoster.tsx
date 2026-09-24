@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useActionState } from 'react'
 import { logProgress } from '@/app/actions/progress'
 import { initials } from '@/lib/format'
-import { JUZ_RANGE } from '@/lib/quran'
+import { JUZ_RANGE, IQRO_PAGES, surahByNumber, surahsForTrack } from '@/lib/quran'
 
 type ProgressType = 'iqro' | 'tadarus' | 'juz30' | 'juz29'
 
@@ -12,23 +12,28 @@ export type StudentWithProgress = {
   id: string
   name: string
   isInactive: boolean
-  hasAssessment: boolean
+  /** Latest entry was marked U (Ulang). */
+  needsRepeat: boolean
   latestProgress: {
     type: ProgressType
     iqro_level: number | null
     iqro_page: number | null
     juz_page: number | null
+    surah_number: number | null
+    ayat: number | null
     log_date: string | null
   } | null
 }
 
-type Filter = 'semua' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'evaluasi'
+type Filter = 'semua' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'ulang'
 
 function progressLabel(p: StudentWithProgress['latestProgress']): string {
   if (!p) return 'Belum ada catatan'
   if (p.type === 'iqro') return `Iqro ${p.iqro_level} · Hal. ${p.iqro_page}`
   const juz = JUZ_RANGE[p.type]
-  return juz ? `${juz.label} · Hal. ${p.juz_page}` : '—'
+  const surah = surahByNumber(p.surah_number)
+  if (surah) return `${juz.label} · ${surah.latin}${p.ayat ? ` ayat ${p.ayat}` : ''}`
+  return `${juz.label} · Hal. ${p.juz_page}`
 }
 
 function formatDate(dateStr: string | null): string {
@@ -51,8 +56,9 @@ export default function StudentRoster({
   const [filter, setFilter] = useState<Filter>('semua')
   const [selected, setSelected] = useState<StudentWithProgress | null>(null)
   const [trackType, setTrackType] = useState<ProgressType>('iqro')
-  const [murajaah, setMurajaah] = useState(false)
-  const [murajaahOutcome, setMurajaahOutcome] = useState<'lanjut' | 'ulang'>('lanjut')
+  const [iqroLevel, setIqroLevel] = useState(1)
+  const [surahNumber, setSurahNumber] = useState(78)
+  const [outcome, setOutcome] = useState<'lanjut' | 'ulang'>('lanjut')
   const [state, formAction, isPending] = useActionState(logProgress, null)
   const prevIsPendingRef = useRef(false)
 
@@ -64,15 +70,26 @@ export default function StudentRoster({
     }
   }, [isPending, state])
 
+  // Pre-fill the form from the student's last logged position.
+  function selectTrack(t: ProgressType, p: StudentWithProgress['latestProgress']) {
+    setTrackType(t)
+    if (t === 'iqro') {
+      setIqroLevel(p?.type === 'iqro' ? (p.iqro_level ?? 1) : 1)
+    } else {
+      const surahs = surahsForTrack(t)
+      const last = p?.type === t ? surahByNumber(p.surah_number) : null
+      setSurahNumber((last && surahs.includes(last) ? last : surahs[0]).number)
+    }
+  }
+
   function openStudent(student: StudentWithProgress) {
     setSelected(student)
-    setTrackType(student.latestProgress?.type ?? 'iqro')
-    setMurajaah(false)
-    setMurajaahOutcome('lanjut')
+    selectTrack(student.latestProgress?.type ?? 'iqro', student.latestProgress)
+    setOutcome('lanjut')
   }
 
   const inactiveCount = students.filter((s) => s.isInactive).length
-  const assessmentCount = students.filter((s) => s.hasAssessment).length
+  const repeatCount = students.filter((s) => s.needsRepeat).length
   const iqroCount = students.filter((s) => s.latestProgress?.type === 'iqro').length
   const tadarusCount = students.filter((s) => s.latestProgress?.type === 'tadarus').length
   const quranCount = students.filter(
@@ -81,7 +98,7 @@ export default function StudentRoster({
 
   const filtered = students.filter((s) => {
     if (filter === 'tidak_aktif') return s.isInactive
-    if (filter === 'evaluasi') return s.hasAssessment
+    if (filter === 'ulang') return s.needsRepeat
     if (filter === 'iqro') return s.latestProgress?.type === 'iqro'
     if (filter === 'tadarus') return s.latestProgress?.type === 'tadarus'
     if (filter === 'quran') return s.latestProgress?.type === 'juz30' || s.latestProgress?.type === 'juz29'
@@ -96,11 +113,8 @@ export default function StudentRoster({
     )
   }
 
-  const juzRange = trackType !== 'iqro' ? JUZ_RANGE[trackType] : null
-  const defaultJuzPage =
-    selected?.latestProgress?.type === trackType
-      ? (selected.latestProgress.juz_page ?? juzRange?.min ?? 582)
-      : (juzRange?.min ?? 582)
+  const last = selected?.latestProgress?.type === trackType ? selected.latestProgress : null
+  const surah = trackType !== 'iqro' ? surahByNumber(surahNumber) : null
 
   return (
     <>
@@ -113,7 +127,7 @@ export default function StudentRoster({
             { key: 'tadarus', label: 'Tadarus', count: tadarusCount },
             { key: 'quran', label: 'Hafalan', count: quranCount },
             { key: 'tidak_aktif', label: 'Tidak Aktif', count: inactiveCount },
-            { key: 'evaluasi', label: 'Perlu Evaluasi', count: assessmentCount },
+            { key: 'ulang', label: 'Perlu Ulang', count: repeatCount },
           ] as { key: Filter; label: string; count: number }[]
         ).map(({ key, label, count }) => (
           <button
@@ -148,8 +162,8 @@ export default function StudentRoster({
                 <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-ink text-[15px] truncate">{student.name}</p>
-                  {student.hasAssessment && (
-                    <span className="shrink-0 w-2 h-2 rounded-full bg-gold" title="Pernah dievaluasi murajaah" />
+                  {student.needsRepeat && (
+                    <span className="shrink-0 w-2 h-2 rounded-full bg-gold" title="Catatan terakhir: Ulang" />
                   )}
                   {student.isInactive && (
                     <span className="shrink-0 text-[11px] bg-warn-soft text-warn px-2 py-0.5 rounded-full font-medium">
@@ -245,7 +259,7 @@ export default function StudentRoster({
                 <button
                   key={t}
                   type="button"
-                  onClick={() => { setTrackType(t); setMurajaah(false) }}
+                  onClick={() => selectTrack(t, selected.latestProgress)}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
                     trackType === t ? 'bg-surface text-ink shadow-sm' : 'text-ink-2'
                   }`}
@@ -258,7 +272,7 @@ export default function StudentRoster({
             <form action={formAction} className="space-y-4">
               <input type="hidden" name="student_id" value={selected.id} />
               <input type="hidden" name="type" value={trackType} />
-              <input type="hidden" name="murajaah" value={murajaah ? 'true' : 'false'} />
+              <input type="hidden" name="outcome" value={outcome} />
 
               {trackType === 'iqro' && (
                 <div className="grid grid-cols-2 gap-3">
@@ -268,7 +282,8 @@ export default function StudentRoster({
                     </label>
                     <select
                       name="iqro_level"
-                      defaultValue={selected.latestProgress?.iqro_level ?? 1}
+                      value={iqroLevel}
+                      onChange={(e) => setIqroLevel(Number(e.target.value))}
                       className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px] cursor-pointer"
                     >
                       {[1, 2, 3, 4, 5, 6].map((l) => (
@@ -278,115 +293,94 @@ export default function StudentRoster({
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                      Halaman
+                      Halaman (1–{IQRO_PAGES[iqroLevel - 1]})
                     </label>
                     <input
+                      key={`iqro-${iqroLevel}`}
                       name="iqro_page"
                       type="number"
+                      inputMode="numeric"
                       min={1}
-                      max={64}
-                      defaultValue={selected.latestProgress?.iqro_page ?? 1}
+                      max={IQRO_PAGES[iqroLevel - 1]}
+                      defaultValue={last?.iqro_level === iqroLevel ? (last.iqro_page ?? 1) : 1}
                       className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px]"
                     />
                   </div>
                 </div>
               )}
 
-              {trackType !== 'iqro' && juzRange && (
+              {surah && trackType !== 'iqro' && (
                 <>
-                  <div>
-                    <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                      Halaman {juzRange.label} ({juzRange.min}–{juzRange.max})
-                    </label>
-                    <input
-                      name="juz_page"
-                      type="number"
-                      min={juzRange.min}
-                      max={juzRange.max}
-                      defaultValue={defaultJuzPage}
-                      className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px]"
-                    />
+                  <div className="grid grid-cols-[1fr_6rem] gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink-2 mb-1.5">Surah</label>
+                      <select
+                        name="surah_number"
+                        value={surahNumber}
+                        onChange={(e) => setSurahNumber(Number(e.target.value))}
+                        className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px] cursor-pointer"
+                      >
+                        {surahsForTrack(trackType).map((s) => (
+                          <option key={s.number} value={s.number}>
+                            {s.number}. {s.latin}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-ink-2 mb-1.5">
+                        Ayat (1–{surah.ayat})
+                      </label>
+                      <input
+                        key={`ayat-${trackType}-${surahNumber}`}
+                        name="ayat"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={surah.ayat}
+                        defaultValue={last?.surah_number === surahNumber ? (last.ayat ?? 1) : 1}
+                        className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px]"
+                      />
+                    </div>
                   </div>
+                  <p className="font-arabic text-right text-lg text-ink-2 -mt-2" dir="rtl" lang="ar">
+                    {surah.arabic}
+                  </p>
 
                   {trackType === 'tadarus' && (
                     <p className="text-xs text-ink-3 -mt-1">
-                      Tadarus: membaca Juz 30 dengan lancar, belum menghafal. Murajaah dimulai di tahap hafalan.
+                      Tadarus: membaca Juz 30 dengan lancar, belum menghafal.
                     </p>
-                  )}
-
-                  {trackType !== 'tadarus' && (
-                  <div className="flex items-center justify-between py-3 border-t border-line">
-                    <div>
-                      <p className="text-sm font-medium text-ink">Tandai untuk Murajaah</p>
-                      <p className="text-xs text-ink-3">Evaluasi bacaan siswa</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setMurajaah((v) => !v)}
-                      className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${
-                        murajaah ? 'bg-warn' : 'bg-line'
-                      }`}
-                      aria-label="Toggle murajaah"
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-surface rounded-full shadow transition-transform ${
-                          murajaah ? 'translate-x-5' : 'translate-x-0'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  )}
-
-                  {murajaah && trackType !== 'tadarus' && (
-                    <div className="space-y-3 bg-warn-soft rounded-2xl p-4">
-                      <p className="text-xs font-semibold text-warn uppercase tracking-wide">
-                        Hasil Murajaah
-                      </p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setMurajaahOutcome('lanjut')}
-                          className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer ${
-                            murajaahOutcome === 'lanjut'
-                              ? 'bg-accent text-surface border-accent'
-                              : 'bg-surface text-ink border-line'
-                          }`}
-                        >
-                          Lanjut
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMurajaahOutcome('ulang')}
-                          className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer ${
-                            murajaahOutcome === 'ulang'
-                              ? 'bg-warn text-surface border-warn'
-                              : 'bg-surface text-ink border-line'
-                          }`}
-                        >
-                          Ulang
-                        </button>
-                      </div>
-                      <input type="hidden" name="murajaah_outcome" value={murajaahOutcome} />
-                      <div>
-                        <label className="block text-xs font-medium text-warn mb-1.5">
-                          Catatan Murajaah{murajaahOutcome === 'ulang' ? ' *' : ' (opsional)'}
-                        </label>
-                        <textarea
-                          name="murajaah_reason"
-                          placeholder={
-                            murajaahOutcome === 'ulang'
-                              ? 'Mis: Halaman 585–588 belum lancar...'
-                              : 'Mis: Bacaan sudah lancar, lanjut ke halaman berikutnya...'
-                          }
-                          rows={2}
-                          required={murajaahOutcome === 'ulang'}
-                          className="w-full bg-surface border border-line rounded-xl px-3 py-2.5 text-sm text-ink resize-none"
-                        />
-                      </div>
-                    </div>
                   )}
                 </>
               )}
+
+              {/* L / U — same as the paper Mutaba'ah column */}
+              <div>
+                <p className="text-xs font-medium text-ink-2 mb-1.5">Hasil</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setOutcome('lanjut')}
+                    aria-pressed={outcome === 'lanjut'}
+                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
+                      outcome === 'lanjut' ? 'bg-accent text-surface border-accent' : 'bg-surface text-ink border-line'
+                    }`}
+                  >
+                    L · Lanjut
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOutcome('ulang')}
+                    aria-pressed={outcome === 'ulang'}
+                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
+                      outcome === 'ulang' ? 'bg-gold text-surface border-gold' : 'bg-surface text-ink border-line'
+                    }`}
+                  >
+                    U · Ulang
+                  </button>
+                </div>
+              </div>
 
               <div>
                 <label className="block text-xs font-medium text-ink-2 mb-1.5">

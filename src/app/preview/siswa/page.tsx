@@ -12,6 +12,7 @@ export default function PreviewSiswa() {
       className="Kelas A"
       teacherName="Ustadz Hamzah"
       progressLogs={siswaLogs}
+      journeyLogs={siswaLogs}
       assessments={siswaAssessments}
       badges={badges}
       earnedBadges={earnedBadges}

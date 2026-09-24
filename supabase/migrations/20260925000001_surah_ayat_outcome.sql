@@ -156,3 +156,11 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.award_badges_for_student(UUID, UUID) FROM PUBLIC;
+
+-- Badge copy followed the old page rule.
+UPDATE public.badges SET description = 'Selesai membaca Juz 30 dengan lancar (sampai An-Nas)'
+  WHERE trigger_type = 'juz_complete' AND trigger_value = 'tadarus';
+UPDATE public.badges SET description = 'Menyelesaikan hafalan Juz 30 (sampai An-Nas)'
+  WHERE trigger_type = 'juz_complete' AND trigger_value = 'juz30';
+UPDATE public.badges SET description = 'Menyelesaikan hafalan Juz 29 (sampai Al-Mursalat)'
+  WHERE trigger_type = 'juz_complete' AND trigger_value = 'juz29';

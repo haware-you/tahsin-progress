@@ -1,13 +1,10 @@
-import { Sprout, BookCheck, BookOpenCheck, CalendarCheck, Lock, type LucideIcon } from 'lucide-react'
+import { Sprout, BookCheck, BookOpenCheck, CalendarCheck, Lock, Check, ChevronDown, type LucideIcon } from 'lucide-react'
 import { SectionTitle, Progress } from '@/components/ui'
-import { surahsBetween, JUZ_RANGE } from '@/lib/quran'
 import { computeStreak } from '@/lib/streak'
+import type { Journey, JuzBar } from '@/lib/progress'
 
 type Log = {
   log_date: string
-  type: 'iqro' | 'tadarus' | 'juz30' | 'juz29'
-  iqro_level: number | null
-  juz_page: number | null
   is_opening_position: boolean
 }
 
@@ -21,17 +18,9 @@ export type Badge = {
 
 export type EarnedBadge = { badge_id: string; awarded_at: string }
 
-// Curriculum path: Iqro 1–6 → Tadarus Juz 30 (reading) → Hafalan Juz 30 → Hafalan Juz 29.
 const STAGES = ['Iqro 1', 'Iqro 2', 'Iqro 3', 'Iqro 4', 'Iqro 5', 'Iqro 6', 'Tadarus', 'Hafal 30', 'Hafal 29']
-const STAGE_START = { tadarus: 6, juz30: 7, juz29: 8 } as const
-
-function stagePosition(log: Log | null): number {
-  if (!log) return 0
-  if (log.type === 'iqro') return Math.max(0, (log.iqro_level ?? 1) - 1)
-  const r = JUZ_RANGE[log.type]
-  const frac = Math.min(1, ((log.juz_page ?? r.min) - r.min) / (r.max - r.min + 1))
-  return STAGE_START[log.type] + frac
-}
+// Nine labels don't fit side by side at 375 px, so phones get short ones.
+const STAGES_SHORT = ['1', '2', '3', '4', '5', '6', 'Tdr', 'H30', 'H29']
 
 const ICONS: Record<string, LucideIcon> = {
   first_log: Sprout,
@@ -42,48 +31,40 @@ const ICONS: Record<string, LucideIcon> = {
 
 export default function Laporan({
   logs,
+  journey,
   badges,
   earned,
-  lanjutCount,
 }: {
   logs: Log[]
+  journey: Journey
   badges: Badge[]
   earned: EarnedBadge[]
-  lanjutCount: number
 }) {
   const real = logs.filter((l) => !l.is_opening_position)
-  const latest = logs[0] ?? null
-  const pos = stagePosition(latest)
+  const pos = journey.position
   const current = Math.min(STAGES.length - 1, Math.floor(pos))
   const pct = Math.round((pos / STAGES.length) * 100)
   const streak = computeStreak(real.map((l) => l.log_date))
   const earnedMap = new Map(earned.map((e) => [e.badge_id, e.awarded_at]))
+  const hafalan = journey.juz.filter((j) => j.track !== 'tadarus')
+  const iqroLevel = journey.iqro.filter((b) => b.done === b.pages).length
 
   // Hint towards each badge not yet earned.
   function hint(b: Badge): { value: number; max: number } | null {
     if (b.trigger_type === 'weekly_streak') return { value: Math.min(streak, 4), max: 4 }
-    if (b.trigger_type === 'iqro_level') {
-      if (latest?.type !== 'iqro') return latest ? { value: 6, max: 6 } : { value: 0, max: 6 }
-      return { value: latest.iqro_level ?? 0, max: 6 }
-    }
+    if (b.trigger_type === 'iqro_level') return { value: iqroLevel, max: 6 }
     if (b.trigger_type === 'juz_complete') {
-      const juz = b.trigger_value as 'tadarus' | 'juz30' | 'juz29'
-      const r = JUZ_RANGE[juz]
-      const total = r.max - r.min + 1
-      if (latest?.type === juz) return { value: (latest.juz_page ?? r.min) - r.min + 1, max: total }
-      return { value: 0, max: total }
+      const j = journey.juz.find((x) => x.track === b.trigger_value)
+      return j ? { value: j.doneAyat, max: j.totalAyat } : null
     }
     if (b.trigger_type === 'first_log') return { value: Math.min(real.length, 1), max: 1 }
     return null
   }
 
-  const surahDone =
-    latest && latest.type !== 'iqro' ? surahsBetween(JUZ_RANGE[latest.type].min, latest.juz_page ?? 0) : 0
-
   const achievements = [
     { v: real.length, l: 'sesi belajar' },
-    { v: surahDone, l: 'surah dilalui' },
-    { v: lanjutCount, l: 'murajaah lanjut' },
+    { v: hafalan.reduce((n, j) => n + j.surahsDone, 0), l: 'surah dihafal' },
+    { v: hafalan.reduce((n, j) => n + j.doneAyat, 0), l: 'ayat dihafal' },
     { v: streak, l: 'minggu beruntun' },
   ]
 
@@ -118,12 +99,43 @@ export default function Laporan({
                   i === current ? 'text-ink font-semibold' : 'text-ink-3'
                 }`}
               >
-                {s.replace(' ', ' ')}
+                <span className="sm:hidden">{STAGES_SHORT[i]}</span>
+                <span className="hidden sm:inline">{s}</span>
               </span>
             </li>
           ))}
         </ol>
         <p className="text-xs text-ink-3 mt-5">Jalur: Iqro 1–6 → Tadarus Juz 30 (membaca) → Hafalan Juz 30 → Hafalan Juz 29.</p>
+      </div>
+
+      {/* Iqro 1–6, by pages */}
+      <h3 className="font-serif text-xl text-ink mt-10 mb-4">Iqro</h3>
+      <ul className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {journey.iqro.map((b) => (
+          <li key={b.level} className="rounded-2xl bg-surface px-4 py-3.5">
+            <div className="flex items-baseline justify-between gap-2">
+              <p className={`text-sm font-semibold ${b.done ? 'text-ink' : 'text-ink-3'}`}>Iqro {b.level}</p>
+              {b.done === b.pages ? (
+                <Check size={15} className="text-accent" aria-label="Selesai" />
+              ) : (
+                <span className="text-[11px] text-ink-3">
+                  {b.done}/{b.pages} hal.
+                </span>
+              )}
+            </div>
+            <div className="mt-2.5">
+              <Progress value={b.done} max={b.pages} />
+            </div>
+          </li>
+        ))}
+      </ul>
+
+      {/* Tadarus + Hafalan, by ayat, with each surah */}
+      <h3 className="font-serif text-xl text-ink mt-10 mb-4">Al-Qur&apos;an</h3>
+      <div className="space-y-3">
+        {journey.juz.map((j) => (
+          <JuzCard key={j.track} bar={j} />
+        ))}
       </div>
 
       {/* Achievements */}
@@ -182,5 +194,37 @@ export default function Laporan({
         </ul>
       )}
     </section>
+  )
+}
+
+function JuzCard({ bar }: { bar: JuzBar }) {
+  return (
+    <details className="group rounded-2xl bg-surface">
+      <summary className="list-none cursor-pointer px-5 py-4 min-h-[44px] [&::-webkit-details-marker]:hidden">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className={`text-sm font-semibold ${bar.started ? 'text-ink' : 'text-ink-3'}`}>{bar.label}</p>
+          <span className="flex items-center gap-2 text-[11px] text-ink-3 shrink-0">
+            {bar.started ? `${bar.surahsDone}/${bar.surahs.length} surah · ${bar.doneAyat}/${bar.totalAyat} ayat` : 'Belum dimulai'}
+            <ChevronDown size={14} className="transition-transform group-open:rotate-180" aria-hidden />
+          </span>
+        </div>
+        <div className="mt-2.5">
+          <Progress value={bar.doneAyat} max={bar.totalAyat} />
+        </div>
+      </summary>
+      <ol className="px-5 pb-4 space-y-2">
+        {bar.surahs.map(({ surah, done }) => (
+          <li key={surah.number} className="grid grid-cols-[1fr_4.5rem_2.5rem] items-center gap-3">
+            <span className={`text-xs truncate ${done ? 'text-ink' : 'text-ink-3'}`}>
+              {surah.number}. {surah.latin}
+            </span>
+            <Progress value={done} max={surah.ayat} />
+            <span className="text-[11px] text-ink-3 text-right">
+              {done === surah.ayat ? <Check size={13} className="text-accent inline" aria-label="Selesai" /> : `${done}/${surah.ayat}`}
+            </span>
+          </li>
+        ))}
+      </ol>
+    </details>
   )
 }

@@ -5,6 +5,7 @@ import { ArrowUpRight, FileDown } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, currentWeek, dateKey, SCHOOL_DAYS, type TimelineItem } from '@/components/ui'
 import { JUZ_RANGE, logSurah, positionLabel } from '@/lib/quran'
+import { computeJourney, type JourneyLog } from '@/lib/progress'
 import { computeStreak } from '@/lib/streak'
 import { firstName } from '@/lib/format'
 import Laporan, { type Badge, type EarnedBadge } from './Laporan'
@@ -40,6 +41,8 @@ type Props = {
   role: 'admin' | 'student_parent'
   now: number
   progressLogs: ProgressLog[]
+  /** Every entry (lightweight columns) so the progress bars see the furthest position. */
+  journeyLogs: JourneyLog[]
   assessments: Assessment[]
   badges: Badge[]
   earnedBadges: EarnedBadge[]
@@ -54,6 +57,7 @@ export default function SiswaView({
   role,
   now,
   progressLogs,
+  journeyLogs,
   assessments,
   badges,
   earnedBadges,
@@ -61,6 +65,7 @@ export default function SiswaView({
   const [view, setView] = useState<'siswa' | 'ortu'>('siswa')
 
   const realLogs = progressLogs.filter((l) => !l.is_opening_position)
+  const journey = computeJourney(journeyLogs)
   const latest = progressLogs[0] ?? null
   const streak = computeStreak(realLogs.map((l) => l.log_date))
 
@@ -70,6 +75,7 @@ export default function SiswaView({
 
   const surah = latest ? logSurah(latest) : null
   const range = latest && latest.type !== 'iqro' ? JUZ_RANGE[latest.type] : null
+  const juzBar = latest && latest.type !== 'iqro' ? journey.juz.find((j) => j.track === latest.type) : null
   const where = latest?.ayat && surah
     ? `surah ${surah.latin} ayat ${latest.ayat}`
     : `halaman ${latest?.juz_page}${surah ? ` — surah ${surah.latin}` : ''}`
@@ -212,8 +218,8 @@ export default function SiswaView({
                   </>
                 ) : (
                   <>
-                    <span className="font-semibold text-gold">{(latest.juz_page ?? 0) - (range?.min ?? 0) + 1}</span> /{' '}
-                    {(range?.max ?? 0) - (range?.min ?? 0) + 1} halaman {range?.label}
+                    <span className="font-semibold text-gold">{juzBar?.doneAyat ?? 0}</span> / {juzBar?.totalAyat} ayat{' '}
+                    {range?.label}
                   </>
                 )}
               </p>
@@ -221,7 +227,7 @@ export default function SiswaView({
                 {latest.type === 'iqro' ? (
                   <Progress value={latest.iqro_level ?? 0} max={6} />
                 ) : (
-                  <Progress value={(latest.juz_page ?? 0) - (range?.min ?? 0) + 1} max={(range?.max ?? 1) - (range?.min ?? 0) + 1} />
+                  <Progress value={juzBar?.doneAyat ?? 0} max={juzBar?.totalAyat ?? 1} />
                 )}
               </div>
               <p className="text-xs text-ink-3 mt-4 text-right">— diperbarui {relativeDay(latest.log_date).toLowerCase()}</p>
@@ -251,12 +257,7 @@ export default function SiswaView({
         ))}
       </section>
 
-      <Laporan
-        logs={progressLogs}
-        badges={badges}
-        earned={earnedBadges}
-        lanjutCount={assessments.filter((a) => a.outcome === 'lanjut').length}
-      />
+      <Laporan logs={progressLogs} journey={journey} badges={badges} earned={earnedBadges} />
 
       {/* Session list */}
       <section className="mt-14" id="riwayat">
@@ -265,7 +266,7 @@ export default function SiswaView({
           <p className="text-sm text-ink-3">Belum ada sesi yang tercatat.</p>
         ) : (
           <ul className="space-y-2">
-            {realLogs.slice(0, 10).map((log) => {
+            {realLogs.slice(0, 5).map((log) => {
               const s = logSurah(log)
               return (
                 <li key={log.id} className="flex items-center gap-4 rounded-2xl bg-surface px-5 py-4 min-h-[56px]">

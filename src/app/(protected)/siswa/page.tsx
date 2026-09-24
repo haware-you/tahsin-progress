@@ -38,6 +38,7 @@ export default async function SiswaPage({
 
   const [
     { data: progressLogs },
+    { data: journeyLogs },
     { data: assessments },
     { data: activeYear },
     { data: badges },
@@ -51,6 +52,12 @@ export default async function SiswaPage({
         .order('log_date', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(50),
+      // All years: a juz memorized last year still counts on this year's bars.
+      supabase
+        .from('progress_logs')
+        .select('type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome')
+        .eq('student_id', student.id)
+        .limit(5000),
       supabase
         .from('assessments')
         .select('id, juz_type, juz_page, outcome, reason, assessed_at')
@@ -93,6 +100,7 @@ export default async function SiswaPage({
       className={className}
       teacherName={teacherName}
       progressLogs={progressLogs ?? []}
+      journeyLogs={journeyLogs ?? []}
       assessments={assessments ?? []}
       badges={badges ?? []}
       earnedBadges={earnedBadges ?? []}

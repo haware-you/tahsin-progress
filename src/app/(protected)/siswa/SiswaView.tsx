@@ -281,7 +281,7 @@ export default function SiswaView({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-ink truncate">
                       {positionLabel(log)}
-                      {log.outcome === 'ulang' && <span className="ml-2 text-xs font-semibold text-warn">U · Ulang</span>}
+                      {log.outcome === 'ulang' && <span className="ml-2 text-xs font-semibold text-gold">U · Ulang</span>}
                     </p>
                     {view === 'ortu' && log.notes && (
                       <p className="text-xs italic text-ink-2 mt-0.5 line-clamp-2">{log.notes}</p>

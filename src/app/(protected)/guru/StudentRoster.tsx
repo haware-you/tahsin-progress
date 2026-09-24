@@ -163,7 +163,7 @@ export default function StudentRoster({
                 <div className="flex items-center gap-2">
                   <p className="font-medium text-ink text-[15px] truncate">{student.name}</p>
                   {student.needsRepeat && (
-                    <span className="shrink-0 w-2 h-2 rounded-full bg-warn" title="Catatan terakhir: Ulang" />
+                    <span className="shrink-0 w-2 h-2 rounded-full bg-gold" title="Catatan terakhir: Ulang" />
                   )}
                   {student.isInactive && (
                     <span className="shrink-0 text-[11px] bg-warn-soft text-warn px-2 py-0.5 rounded-full font-medium">
@@ -374,7 +374,7 @@ export default function StudentRoster({
                     onClick={() => setOutcome('ulang')}
                     aria-pressed={outcome === 'ulang'}
                     className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
-                      outcome === 'ulang' ? 'bg-warn text-surface border-warn' : 'bg-surface text-ink border-line'
+                      outcome === 'ulang' ? 'bg-gold text-surface border-gold' : 'bg-surface text-ink border-line'
                     }`}
                   >
                     U · Ulang

@@ -55,9 +55,10 @@ body {
 /* Landing record stack: back cards fan out to show earlier entries.
    --f (0–1) is driven by scroll position (landing-motion.tsx); hover forces a full fan.
    !important lets the hover rule beat the inline --f that scrolling writes. */
+/* Phones: a narrow fan so the back cards stay on screen with the stack at full width. */
 .fan-stack {
-  --fan-x: 9%;
-  --fan-r: 6deg;
+  --fan-x: 1.5%;
+  --fan-r: 2deg;
 }
 @media (min-width: 640px) {
   .fan-stack { --fan-x: 9%; --fan-r: 7deg; }

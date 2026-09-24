@@ -15,9 +15,6 @@ export default function YearsClient({ years }: { years: Year[] }) {
   const [activateError, activateAction, isActivating] = useActionState<string | null, FormData>(activateYear, null)
   const [rollover, rolloverAction, isRolling] = useActionState<RolloverResult | null, FormData>(rolloverEnrollments, null)
 
-  const activeYear = years.find(y => y.is_active)
-  const inactiveYears = years.filter(y => !y.is_active)
-
   return (
     <div className="space-y-4">
 

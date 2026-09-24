@@ -64,13 +64,12 @@ export default function StudentRoster({
     }
   }, [isPending, state])
 
-  useEffect(() => {
-    if (selected) {
-      setTrackType(selected.latestProgress?.type ?? 'iqro')
-      setMurajaah(false)
-      setMurajaahOutcome('lanjut')
-    }
-  }, [selected])
+  function openStudent(student: StudentWithProgress) {
+    setSelected(student)
+    setTrackType(student.latestProgress?.type ?? 'iqro')
+    setMurajaah(false)
+    setMurajaahOutcome('lanjut')
+  }
 
   const inactiveCount = students.filter((s) => s.isInactive).length
   const assessmentCount = students.filter((s) => s.hasAssessment).length
@@ -194,7 +193,7 @@ export default function StudentRoster({
             return (
               <button
                 key={student.id}
-                onClick={() => !isReadonly && setSelected(student)}
+                onClick={() => !isReadonly && openStudent(student)}
                 className={`w-full bg-surface rounded-2xl px-5 py-4 flex items-center justify-between transition-colors min-h-[60px] text-left ${
                   isReadonly ? 'cursor-default' : 'active:bg-panel cursor-pointer'
                 }`}

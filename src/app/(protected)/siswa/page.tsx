@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { requestTime } from '@/lib/time'
 import SiswaView from './SiswaView'
 
 export default async function SiswaPage({
@@ -86,7 +87,7 @@ export default async function SiswaPage({
   return (
     <SiswaView
       studentId={student.id}
-      now={Date.now()}
+      now={requestTime()}
       role={isAdmin ? 'admin' : 'student_parent'}
       studentName={student.name ?? user.email ?? 'Siswa'}
       className={className}

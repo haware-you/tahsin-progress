@@ -75,7 +75,8 @@ export function Entrance({ children, delay = 0 }: { children: React.ReactNode; d
 
 /** Hero card stack: starts tilted and small, straightens and grows as the page scrolls.
  *  Writes a --p (0–1) CSS variable directly so scrolling never re-renders React.
- *  Server HTML renders the settled state (--p: 1), so it reads correctly without JS. */
+ *  Server HTML renders the settled state (--p: 1), so it reads correctly without JS;
+ *  a stack already on screen at hydration stays straight so it never visibly snaps. */
 export function GrowStack({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -84,11 +85,15 @@ export function GrowStack({ children }: { children: React.ReactNode }) {
     if (!el) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
+    // If the stack is already in the first screen at hydration, the server's straight
+    // pose is on screen; keep it (only the fan follows scroll) so it never snaps to tilted.
+    const lockStraight = el.getBoundingClientRect().top < window.innerHeight
+
     const measure = () => {
       const vh = window.innerHeight
       // 0 when the stack's top is at the bottom of the viewport, 1 when it reaches 20% from the top
       const rect = el.getBoundingClientRect()
-      const p = Math.max(0, Math.min(1, (vh - rect.top) / (vh * 0.8)))
+      const p = lockStraight ? 1 : Math.max(0, Math.min(1, (vh - rect.top) / (vh * 0.8)))
       // Fan peaks when the stack is centred in the viewport and folds as it leaves.
       // Gated by p so the fan only opens once the card has straightened.
       const d = Math.abs(rect.top + rect.height / 2 - vh / 2) / (vh * 0.5)
@@ -102,13 +107,25 @@ export function GrowStack({ children }: { children: React.ReactNode }) {
       cancelAnimationFrame(raf)
       raf = requestAnimationFrame(measure)
     }
-    measure() // synchronous, before first paint: no jump from settled to tilted
-    window.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
+    let listening = false
+    const listen = (on: boolean) => {
+      if (on === listening) return
+      listening = on
+      const method = on ? 'addEventListener' : 'removeEventListener'
+      window[method]('scroll', update, { passive: true } as AddEventListenerOptions)
+      window[method]('resize', update)
+      if (on) update()
+    }
+    measure() // synchronous, before first paint
+    // Only track scroll while the stack is on (or about to be on) screen.
+    const io = new IntersectionObserver(([entry]) => listen(entry.isIntersecting), {
+      rootMargin: '10% 0px 10% 0px',
+    })
+    io.observe(el)
     return () => {
+      io.disconnect()
+      listen(false)
       cancelAnimationFrame(raf)
-      window.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
     }
   }, [])
 
@@ -122,16 +139,17 @@ export function GrowStack({ children }: { children: React.ReactNode }) {
   // inner .fan-layer elements fan out from --f: scroll-driven, or full on hover (see globals.css).
   return (
     <div ref={ref} className="relative fan-stack" style={{ '--p': 1 } as React.CSSProperties}>
-      <div className="absolute inset-x-6 -top-5 h-full" style={layer(1.8, 0.97)} aria-hidden>
-        <div className="fan-layer fan-left h-full rounded-[32px] bg-panel p-6">
+      {/* Phones get taller peeks and a one-line label so the back cards read without hover. */}
+      <div className="absolute inset-x-6 -top-[76px] sm:-top-5 h-full" style={layer(1.8, 0.97)} aria-hidden>
+        <div className="fan-layer fan-left h-full rounded-[32px] bg-panel px-6 pt-2 flex items-baseline justify-between sm:block sm:p-6">
           <p className="text-xs text-ink-3">Pekan lalu</p>
-          <p className="font-serif text-lg text-ink-2">Al-Ghasyiyah ✓</p>
+          <p className="font-serif text-base sm:text-lg text-ink-2">Al-Ghasyiyah ✓</p>
         </div>
       </div>
-      <div className="absolute inset-x-3 -top-2.5 h-full" style={layer(1.2, 0.985)} aria-hidden>
-        <div className="fan-layer fan-right h-full rounded-[32px] bg-accent-soft p-6 text-right">
+      <div className="absolute inset-x-3 -top-10 sm:-top-2.5 h-full" style={layer(1.2, 0.985)} aria-hidden>
+        <div className="fan-layer fan-right h-full rounded-[32px] bg-accent-soft px-6 pt-2 flex items-baseline justify-between sm:block sm:p-6 sm:text-right">
           <p className="text-xs text-accent/70">Kemarin</p>
-          <p className="font-serif text-lg text-accent">Al-Fajr ✓</p>
+          <p className="font-serif text-base sm:text-lg text-accent">Al-Fajr ✓</p>
         </div>
       </div>
       <div className="relative" style={layer(1, 1)}>

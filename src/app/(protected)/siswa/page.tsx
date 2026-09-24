@@ -46,7 +46,7 @@ export default async function SiswaPage({
     await Promise.all([
       supabase
         .from('progress_logs')
-        .select('id, log_date, type, iqro_level, iqro_page, juz_page, notes, is_opening_position')
+        .select('id, log_date, type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome, notes, is_opening_position')
         .eq('student_id', student.id)
         .order('log_date', { ascending: false })
         .order('created_at', { ascending: false })

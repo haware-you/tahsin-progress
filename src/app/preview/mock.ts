@@ -6,12 +6,12 @@ export function daysAgo(n: number) {
 }
 
 export const siswaLogs = [
-  { id: '1', log_date: daysAgo(0), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 594, notes: 'Bacaan surah Al-Balad sudah lancar, mad thabi\'i perlu dijaga.', is_opening_position: false },
-  { id: '2', log_date: daysAgo(2), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 593, notes: 'Al-Fajr ayat 1–15 lancar. Latihan di rumah ayat 16–30.', is_opening_position: false },
-  { id: '3', log_date: daysAgo(4), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 592, notes: null, is_opening_position: false },
-  { id: '4', log_date: daysAgo(8), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 591, notes: 'Makharijul huruf ع dan ح masih tertukar.', is_opening_position: false },
-  { id: '5', log_date: daysAgo(15), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 590, notes: null, is_opening_position: false },
-  { id: '6', log_date: daysAgo(22), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 589, notes: null, is_opening_position: false },
+  { id: '1', log_date: daysAgo(0), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 594, surah_number: 90, ayat: 12, outcome: 'lanjut' as const, notes: 'Bacaan surah Al-Balad sudah lancar, mad thabi\'i perlu dijaga.', is_opening_position: false },
+  { id: '2', log_date: daysAgo(2), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 593, surah_number: 89, ayat: 16, outcome: 'ulang' as const, notes: 'Al-Fajr ayat 1–15 lancar. Latihan di rumah ayat 16–30.', is_opening_position: false },
+  { id: '3', log_date: daysAgo(4), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 592, surah_number: 89, ayat: 15, outcome: 'lanjut' as const, notes: null, is_opening_position: false },
+  { id: '4', log_date: daysAgo(8), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 591, surah_number: 88, ayat: 26, outcome: 'lanjut' as const, notes: 'Makharijul huruf ع dan ح masih tertukar.', is_opening_position: false },
+  { id: '5', log_date: daysAgo(15), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 590, surah_number: 85, ayat: 22, outcome: 'lanjut' as const, notes: null, is_opening_position: false },
+  { id: '6', log_date: daysAgo(22), type: 'juz30' as const, iqro_level: null, iqro_page: null, juz_page: 589, surah_number: 84, ayat: 25, outcome: 'lanjut' as const, notes: null, is_opening_position: false },
 ]
 
 export const siswaAssessments = [
@@ -33,12 +33,14 @@ export const guruClasses = [
         id: 's' + i,
         name,
         isInactive: inactive,
-        hasAssessment: i % 4 === 1,
+        needsRepeat: i % 4 === 1,
         latestProgress: {
           type: (iqro ? 'iqro' : tadarus ? 'tadarus' : 'juz30') as 'iqro' | 'tadarus' | 'juz30',
           iqro_level: iqro ? (i % 6) + 1 : null,
           iqro_page: iqro ? 12 + i : null,
           juz_page: iqro ? null : 585 + i,
+          surah_number: iqro ? null : 80 + i,
+          ayat: iqro ? null : 3,
           log_date: daysAgo(inactive ? 35 + i : i % 5),
         },
       }

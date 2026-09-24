@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ArrowUpRight, FileDown } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { SectionTitle, WeekStrip, Timeline, Chip, Progress, relativeDay, currentWeek, dateKey, SCHOOL_DAYS, type TimelineItem } from '@/components/ui'
-import { surahForPage, JUZ_RANGE } from '@/lib/quran'
+import { JUZ_RANGE, logSurah, positionLabel } from '@/lib/quran'
 import { computeStreak } from '@/lib/streak'
 import { firstName } from '@/lib/format'
 import Laporan, { type Badge, type EarnedBadge } from './Laporan'
@@ -16,6 +16,9 @@ type ProgressLog = {
   iqro_level: number | null
   iqro_page: number | null
   juz_page: number | null
+  surah_number: number | null
+  ayat: number | null
+  outcome: 'lanjut' | 'ulang'
   notes: string | null
   is_opening_position: boolean
 }
@@ -42,11 +45,6 @@ type Props = {
   earnedBadges: EarnedBadge[]
 }
 
-function positionLabel(log: ProgressLog) {
-  if (log.type === 'iqro') return `Iqro ${log.iqro_level} · Hal. ${log.iqro_page}`
-  const surah = surahForPage(log.juz_page)
-  return `${JUZ_RANGE[log.type].label} · Hal. ${log.juz_page}${surah ? ` · ${surah.latin}` : ''}`
-}
 
 export default function SiswaView({
   studentId,
@@ -70,8 +68,11 @@ export default function SiswaView({
   realLogs.forEach((l) => (counts[l.log_date] = (counts[l.log_date] ?? 0) + 1))
   const weekDays = currentWeek(new Date(now)).filter((d) => counts[dateKey(d)]).length
 
-  const surah = latest && latest.type !== 'iqro' ? surahForPage(latest.juz_page) : null
+  const surah = latest ? logSurah(latest) : null
   const range = latest && latest.type !== 'iqro' ? JUZ_RANGE[latest.type] : null
+  const where = latest?.ayat && surah
+    ? `surah ${surah.latin} ayat ${latest.ayat}`
+    : `halaman ${latest?.juz_page}${surah ? ` — surah ${surah.latin}` : ''}`
 
   const teacher = teacherName ?? 'Ustadz/Ustadzah'
   const timeline: TimelineItem[] = [
@@ -106,8 +107,8 @@ export default function SiswaView({
     ? latest.type === 'iqro'
       ? `Sekarang di Iqro ${latest.iqro_level}, halaman ${latest.iqro_page}. Sedikit demi sedikit, insyaAllah lancar.`
       : latest.type === 'tadarus'
-        ? `Sedang tadarus Juz 30, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Lancarkan bacaan sebelum mulai menghafal.`
-        : `Sekarang di ${range?.label}, halaman ${latest.juz_page}${surah ? ` — surah ${surah.latin}` : ''}. Teruskan murajaah di rumah.`
+        ? `Sedang tadarus Juz 30, ${where}. Lancarkan bacaan sebelum mulai menghafal.`
+        : `Sekarang di ${range?.label}, ${where}. Teruskan murajaah di rumah.`
     : 'Belum ada catatan dari ustadz/ustadzah. Catatan pertama akan muncul di sini.'
 
   const aside = (
@@ -265,7 +266,7 @@ export default function SiswaView({
         ) : (
           <ul className="space-y-2">
             {realLogs.slice(0, 10).map((log) => {
-              const s = log.type !== 'iqro' ? surahForPage(log.juz_page) : null
+              const s = logSurah(log)
               return (
                 <li key={log.id} className="flex items-center gap-4 rounded-2xl bg-surface px-5 py-4 min-h-[56px]">
                   <span
@@ -277,7 +278,10 @@ export default function SiswaView({
                     {log.type === 'iqro' ? log.iqro_level : (s?.arabic ?? '')}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-ink truncate">{positionLabel(log)}</p>
+                    <p className="text-sm font-medium text-ink truncate">
+                      {positionLabel(log)}
+                      {log.outcome === 'ulang' && <span className="ml-2 text-xs font-semibold text-warn">U · Ulang</span>}
+                    </p>
                     {view === 'ortu' && log.notes && (
                       <p className="text-xs italic text-ink-2 mt-0.5 line-clamp-2">{log.notes}</p>
                     )}

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { requestTime } from '@/lib/time'
 import { ArrowUpRight } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import AdminView, { type ClassStat } from './AdminView'
@@ -49,7 +50,7 @@ export default async function AdminPage() {
     )
   }
 
-  const cutoffDate = new Date(Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000)
+  const cutoffDate = new Date(requestTime() - INACTIVE_DAYS * 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0]
 
@@ -83,7 +84,7 @@ export default async function AdminPage() {
   const recentLogs = recentLogsResult.data ?? []
   const trackLogs = trackLogsResult.data ?? []
 
-  const weekCutoff = new Date(Date.now() - ACTIVE_DAYS * 24 * 60 * 60 * 1000)
+  const weekCutoff = new Date(requestTime() - ACTIVE_DAYS * 24 * 60 * 60 * 1000)
 
   // Latest log within the 28-day window per student
   const latestLogByStudent = new Map<string, string>()

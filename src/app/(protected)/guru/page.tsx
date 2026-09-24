@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { requestTime } from '@/lib/time'
 import { type StudentWithProgress } from './StudentRoster'
 import GuruView from './GuruView'
 
@@ -59,7 +60,7 @@ export default async function GuruPage({
 
   const weekCounts: Record<string, number> = {}
 
-  const inactiveCutoff = new Date(Date.now() - INACTIVE_DAYS * 24 * 60 * 60 * 1000)
+  const inactiveCutoff = new Date(requestTime() - INACTIVE_DAYS * 24 * 60 * 60 * 1000)
 
   type ClassWithStudents = { id: string; name: string; students: StudentWithProgress[] }
 
@@ -149,7 +150,7 @@ export default async function GuruPage({
     <GuruView
       isAdmin={isAdmin}
       displayName={isAdmin ? 'Admin' : (teacher?.name ?? user.email ?? 'Ustadz')}
-      now={Date.now()}
+      now={requestTime()}
       allYears={allYears ?? []}
       selectedYear={selectedYear}
       isReadonly={isReadonly}

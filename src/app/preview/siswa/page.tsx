@@ -1,11 +1,12 @@
 import SiswaView from '@/app/(protected)/siswa/SiswaView'
 import { siswaLogs, siswaAssessments, badges, earnedBadges } from '../mock'
+import { requestTime } from '@/lib/time'
 
 export default function PreviewSiswa() {
   return (
     <SiswaView
       studentId="preview"
-      now={Date.now()}
+      now={requestTime()}
       role="student_parent"
       studentName="Ahmad Fauzi"
       className="Kelas A"

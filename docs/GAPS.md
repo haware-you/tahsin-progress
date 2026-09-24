@@ -13,7 +13,11 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 `supabase/migrations/20260919000001_tadarus_track.sql` adds the `tadarus` progress type and the *Khatam Tadarus* badge. Until it's pushed (`npx supabase db push`), saving a Tadarus log fails with an enum error. The demo seed has no tadarus students yet — add some if you need demo data.
 
 
-### ☐ 1. Badges are never awarded when a teacher logs progress
+### ☑ 1. Badges are never awarded when a teacher logs progress
+
+**Fixed 2026-09-20** — option B. `supabase/migrations/20260920000001_badge_award_trigger.sql` adds `award_badge()` / `award_badges_for_student()` (both `SECURITY DEFINER`) and an `AFTER INSERT` trigger on `progress_logs`, plus a backfill over existing logs. The client-side `awardBadge()` / `tryAwardBadges()` are gone from `src/app/actions/progress.ts`. **Still needs `npx supabase db push`.**
+
+<details><summary>Original report</summary>
 
 **Flow:** Teacher saves a log → `tryAwardBadges()` upserts into `student_badges` → parent should see the badge in *Laporan Perjalanan* on `/siswa`.
 
@@ -27,17 +31,39 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 
 **Verify:** log in as guru, log the 1st entry for a student → `/siswa` shows *Langkah Pertama* as earned.
 
-### ☐ 2. Juz 29 page range is inconsistent
+</details>
+
+### ☑ 2. Juz 29 page range is inconsistent
+
+**Fixed 2026-09-20** — `JUZ_RANGE` in `src/lib/quran.ts` (juz29 = 562–581) is now the only definition; the local copies in `progress.ts`, `StudentRoster.tsx` and `import.ts` were deleted and all three import it. The trigger uses 581 for the *Khatam Juz 29* cutoff. The badge description no longer mentions page 582 (fixed in the tadarus migration).
+
+<details><summary>Original report</summary>
 
 `JUZ_PAGE_RANGE.juz29.max` is **582** in `src/app/actions/progress.ts` and `StudentRoster.tsx`, but page 582 is the first page of Juz 30 (An-Naba'). `src/lib/quran.ts` uses 562–581. Result: a teacher can log "Juz 29 page 582", and the *Khatam Juz 29* badge triggers on the wrong page.
 
 **Fix:** one shared `JUZ_RANGE` in `src/lib/quran.ts`, imported by the action, the roster form, and the report. Juz 29 = 562–581. Update the badge description seed ("halaman 582") accordingly.
 
+</details>
+
 ---
 
 ## P1 — Blocks onboarding / everyday use
 
-### ☐ 3. CSV import can't create login accounts
+### ☑ 3. CSV import can't create login accounts
+
+**Fixed 2026-09-20.** `src/lib/supabase/admin.ts` adds a service-role client and `src/lib/auth.ts` a shared `requireAdmin()` guard that every action touching it must pass first. On commit, rows whose email has no account get one via `auth.admin.createUser({ email_confirm: true })`; the existing `handle_new_user` trigger fills in `public.users` with the `student_parent` role.
+
+The generated passwords come back to the admin once, in a panel with **Unduh CSV** / **Salin** — they are never stored. Invite emails were the alternative but Supabase's built-in SMTP can't carry ~350 of them (see gap 4).
+
+Also fixed while in here: the commit loop used to `continue` silently when a class or user was missing, so rows vanished with no explanation. Every skip now records a reason and the result panel lists them.
+
+`/admin/users` gains a **Reset kata sandi** button (confirm → generate → shown once) for families who can't receive the self-service email. This is the part gap 4 left open.
+
+**Set `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` and in Vercel** (server-only — never `NEXT_PUBLIC_`). Without it the app still runs: rows needing a new account are skipped with a clear reason, and the reset button reports the missing key.
+
+**Follow-up:** `npm i server-only` and import it at the top of `src/lib/supabase/admin.ts` and `src/lib/auth.ts`. Right now a runtime `window` check guards them; `server-only` would make an accidental client import a build error instead. (Couldn't be installed in the sandbox this was written in — no network.)
+
+<details><summary>Original report</summary>
 
 **Flow:** Admin uploads student CSV → rows committed → families log in.
 
@@ -49,7 +75,21 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 - On commit: `auth.admin.createUser({ email, password: generated, email_confirm: true })`, then insert `users` + `students` rows.
 - Output: downloadable CSV of generated credentials, or send invite emails (`auth.admin.inviteUserByEmail`) instead of passwords.
 
-### ☐ 4. No password reset
+</details>
+
+### ☑ 4. No password reset
+
+**Fixed 2026-09-20.** `/login/lupa` (request a link) → recovery email → `/auth/reset` (route handler, exchanges the token for a session) → `/login/reset` (set the new password) → `/dashboard`. `requestPasswordReset()` and `updatePassword()` live in `src/app/actions/auth.ts`; the three auth screens now share `src/app/login/AuthShell.tsx`. `src/proxy.ts` lets `/login/lupa`, `/login/reset` and `/auth/reset` through unauthenticated.
+
+**Two things to set before it works in production:**
+1. Add `<site>/auth/reset` to **Authentication → URL Configuration → Redirect URLs** in the Supabase dashboard, for every environment (localhost, preview, production). Without it the emailed link silently lands on the Site URL instead.
+2. Set `NEXT_PUBLIC_SITE_URL` in Vercel. Without it the redirect origin is derived from request headers, which is right in dev but fragile behind a proxy.
+
+Supabase's built-in SMTP allows only a few emails per hour — fine for testing, but the school will need a real SMTP provider (Authentication → Emails → SMTP Settings) before ~350 families use this. The email template is also in English by default; translate it to Bahasa Indonesia.
+
+Admin-triggered resets from `/admin/users` still need the service-role client from gap 3, so that part is **not** done.
+
+<details><summary>Original report</summary>
 
 `/login` now just says "Lupa kata sandi? Hubungi admin sekolah." Every forgotten password becomes an admin task.
 
@@ -58,6 +98,8 @@ Each gap: what's wrong, where in the code, and a suggested fix. Tick the box whe
 - `/login/reset` page → `supabase.auth.updateUser({ password })`.
 - Allow `/login/*` through the auth redirect in `src/proxy.ts` (currently only exactly `/login` is public).
 - Admin side: "Reset kata sandi" button in `/admin/users` (needs the service-role client from gap 3).
+
+</details>
 
 ### ☐ 5. Admin can't log progress
 

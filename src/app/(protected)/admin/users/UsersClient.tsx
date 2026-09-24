@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
-import { changeUserRole } from '@/app/actions/users'
+import { useActionState, useState } from 'react'
+import { changeUserRole, resetUserPassword, type ResetResult } from '@/app/actions/users'
 
 type UserRow = {
   id: string
@@ -44,6 +44,65 @@ function RoleForm({ user }: { user: UserRow }) {
   )
 }
 
+/**
+ * Generates a temporary password and reveals it once. The admin reads it out
+ * to the family; it is never stored anywhere we can show again.
+ */
+function ResetPasswordForm({ user }: { user: UserRow }) {
+  const [result, action, isPending] = useActionState<ResetResult | null, FormData>(
+    resetUserPassword,
+    null
+  )
+  const [confirming, setConfirming] = useState(false)
+
+  if (result?.ok) {
+    return (
+      <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
+        <p className="text-xs text-amber-800 font-medium">Kata sandi sementara</p>
+        <p className="font-mono text-sm text-stone-900 mt-1 break-all select-all">{result.password}</p>
+        <p className="text-xs text-amber-700 mt-1.5">
+          Catat sekarang — kata sandi ini tidak bisa ditampilkan lagi. Minta
+          {' '}{user.student_name ?? user.teacher_name ?? 'pengguna'} menggantinya setelah masuk.
+        </p>
+      </div>
+    )
+  }
+
+  if (!confirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className="mt-2 text-xs text-stone-500 hover:text-stone-800 underline underline-offset-2 min-h-[32px] cursor-pointer"
+      >
+        Reset kata sandi
+      </button>
+    )
+  }
+
+  return (
+    <form action={action} className="mt-2 flex items-center gap-2 flex-wrap">
+      <input type="hidden" name="user_id" value={user.id} />
+      <span className="text-xs text-stone-500">Ganti kata sandi {user.email}?</span>
+      <button
+        type="submit"
+        disabled={isPending}
+        className="text-xs bg-amber-100 text-amber-800 px-3 py-1.5 rounded-lg hover:bg-amber-200 transition-colors min-h-[32px] disabled:opacity-40 cursor-pointer"
+      >
+        {isPending ? 'Memproses…' : 'Ya, reset'}
+      </button>
+      <button
+        type="button"
+        onClick={() => setConfirming(false)}
+        className="text-xs text-stone-500 px-2 py-1.5 min-h-[32px] cursor-pointer"
+      >
+        Batal
+      </button>
+      {result && !result.ok && <span className="text-xs text-red-600 w-full">{result.error}</span>}
+    </form>
+  )
+}
+
 export default function UsersClient({ users }: { users: UserRow[] }) {
   const grouped = ['admin', 'teacher', 'student_parent'].flatMap(role =>
     users.filter(u => u.role === role)
@@ -67,6 +126,7 @@ export default function UsersClient({ users }: { users: UserRow[] }) {
               </div>
               <RoleForm user={user} />
             </div>
+            <ResetPasswordForm user={user} />
           </div>
         ))}
       </div>

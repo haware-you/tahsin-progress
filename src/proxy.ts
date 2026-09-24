@@ -37,13 +37,24 @@ export default async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Public: landing page and login
-  if (!user && pathname !== '/login' && pathname !== '/') {
+  // Public: landing page, login, and the password-reset flow. /login/reset is
+  // listed too so an expired recovery link shows its own error rather than
+  // bouncing silently back to /login.
+  const isPublic =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/login/lupa' ||
+    pathname === '/login/reset' ||
+    pathname === '/auth/reset'
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
+  // A signed-in visitor has no use for the login form, but /login/reset is
+  // reached *with* a recovery session, so only bounce the form itself.
   if (user && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/dashboard'

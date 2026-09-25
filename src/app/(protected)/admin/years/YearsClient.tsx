@@ -132,7 +132,7 @@ export default function YearsClient({ years }: { years: Year[] }) {
             )}
             {rollover?.ok && (
               <p className="text-xs text-green-700">
-                Berhasil: {rollover.classes} kelas baru, {rollover.students} siswa dipindahkan.
+                Berhasil: {rollover.classes} kelas baru, {rollover.students} siswa dipindahkan, {rollover.openings} posisi awal dibawa dari tahun lalu.
               </p>
             )}
             <button

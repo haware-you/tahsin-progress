@@ -68,6 +68,7 @@ export default async function AdminPage() {
       .from('progress_logs')
       .select('student_id, log_date')
       .eq('academic_year_id', activeYear.id)
+      .eq('is_opening_position', false)
       .gte('log_date', cutoffDate)
       .order('log_date', { ascending: false }),
     supabase

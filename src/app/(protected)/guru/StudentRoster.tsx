@@ -22,6 +22,8 @@ export type StudentWithProgress = {
     surah_number: number | null
     ayat: number | null
     log_date: string | null
+    /** Carried over from last year by the rollover or a CSV import; no session yet this year. */
+    isOpening?: boolean
   } | null
 }
 
@@ -175,10 +177,12 @@ export default function StudentRoster({
                   <p className="text-xs text-ink-3">
                     {progressLabel(student.latestProgress)}
                   </p>
-                  {student.latestProgress?.log_date && (
-                    <p className="text-xs text-ink-3">
-                      · {formatDate(student.latestProgress.log_date)}
-                    </p>
+                  {student.latestProgress?.isOpening ? (
+                    <p className="text-xs text-ink-3">· dari tahun lalu</p>
+                  ) : (
+                    student.latestProgress?.log_date && (
+                      <p className="text-xs text-ink-3">· {formatDate(student.latestProgress.log_date)}</p>
+                    )
                   )}
                 </div>
                 </div>
@@ -241,6 +245,11 @@ export default function StudentRoster({
               <div>
                 <p className="text-xs text-ink-3 font-medium">Catat Progres</p>
                 <h3 className="font-serif text-2xl text-ink leading-tight">{selected.name}</h3>
+                {selected.latestProgress?.isOpening && (
+                  <p className="text-xs text-ink-3 mt-1">
+                    Posisi awal (dari tahun lalu): {progressLabel(selected.latestProgress)}
+                  </p>
+                )}
               </div>
               <button
                 onClick={() => !isPending && setSelected(null)}

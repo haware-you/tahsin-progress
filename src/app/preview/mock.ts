@@ -42,6 +42,7 @@ export const guruClasses = [
           surah_number: iqro ? null : 80 + i,
           ayat: iqro ? null : 3,
           log_date: daysAgo(inactive ? 35 + i : i % 5),
+          isOpening: i === 9,
         },
       }
     }),

@@ -83,6 +83,7 @@ export default async function GuruPage({
         surah_number: number | null
         ayat: number | null
         outcome: 'lanjut' | 'ulang'
+        is_opening_position: boolean
         log_date: string | null
       }
 
@@ -91,7 +92,7 @@ export default async function GuruPage({
       if (studentIds.length) {
         const { data } = await supabase
           .from('progress_logs')
-          .select('student_id, type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome, log_date')
+          .select('student_id, type, iqro_level, iqro_page, juz_page, surah_number, ayat, outcome, log_date, is_opening_position')
           .in('student_id', studentIds)
           .eq('academic_year_id', selectedYear?.id ?? '')
           .order('log_date', { ascending: false })
@@ -99,7 +100,8 @@ export default async function GuruPage({
 
         logs = (data ?? []) as unknown as LogRow[]
         logs.forEach((l) => {
-          if (l.log_date) weekCounts[l.log_date] = (weekCounts[l.log_date] ?? 0) + 1
+          // Opening positions carried from last year are not sessions.
+          if (l.log_date && !l.is_opening_position) weekCounts[l.log_date] = (weekCounts[l.log_date] ?? 0) + 1
         })
       }
 
@@ -107,13 +109,19 @@ export default async function GuruPage({
       logs.forEach((log) => {
         if (!latestByStudent.has(log.student_id)) latestByStudent.set(log.student_id, log)
       })
+      const lastSessionByStudent = new Map<string, string>()
+      logs.forEach((log) => {
+        if (!log.is_opening_position && log.log_date && !lastSessionByStudent.has(log.student_id))
+          lastSessionByStudent.set(log.student_id, log.log_date)
+      })
 
       const students: StudentWithProgress[] = (enrollments ?? [])
         .map((e) => {
           const raw = e.students as unknown
           const s = (Array.isArray(raw) ? raw[0] : raw) as { id: string; name: string } | null
           const log = latestByStudent.get(e.student_id as string) ?? null
-          const isInactive = !log?.log_date || new Date(log.log_date) < inactiveCutoff
+          const lastSession = lastSessionByStudent.get(e.student_id as string)
+          const isInactive = !lastSession || new Date(lastSession) < inactiveCutoff
 
           return {
             id: s?.id ?? (e.student_id as string),
@@ -128,6 +136,7 @@ export default async function GuruPage({
                   juz_page: log.juz_page,
                   surah_number: log.surah_number,
                   ayat: log.ayat,
+                  isOpening: log.is_opening_position,
                   log_date: log.log_date,
                 }
               : null,

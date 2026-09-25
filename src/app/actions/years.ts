@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 
 export type RolloverResult =
-  | { ok: true; classes: number; students: number }
+  | { ok: true; classes: number; students: number; openings: number }
   | { ok: false; error: string }
 
 export async function createYear(
@@ -129,7 +129,20 @@ export async function rolloverEnrollments(
     }
   }
 
+  // Opening positions: each student's last entry from the source year, copied
+  // in the database (see carry_forward_positions) so no row limit applies.
+  // Safe to re-run: students who already have an entry are skipped.
+  const { data: openings, error: carryError } = await supabase.rpc('carry_forward_positions', {
+    p_from_year: fromYearId,
+    p_to_year: toYearId,
+  })
+  if (carryError)
+    return {
+      ok: false,
+      error: 'Siswa sudah dipindahkan, tetapi posisi awal belum terbawa. Jalankan rollover sekali lagi.',
+    }
+
   revalidatePath('/admin/years')
   revalidatePath('/guru')
-  return { ok: true, classes: rolledClasses, students: rolledStudents }
+  return { ok: true, classes: rolledClasses, students: rolledStudents, openings: openings ?? 0 }
 }

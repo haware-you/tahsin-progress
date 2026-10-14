@@ -1,7 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useActionState } from 'react'
+import { useState, useActionState } from 'react'
 import { logProgress } from '@/app/actions/progress'
 import { initials } from '@/lib/format'
 import { JUZ_RANGE, IQRO_PAGES, surahByNumber, surahsForTrack } from '@/lib/quran'
@@ -27,7 +26,7 @@ export type StudentWithProgress = {
   } | null
 }
 
-type Filter = 'semua' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'ulang'
+type Filter = 'semua' | 'belum' | 'iqro' | 'tadarus' | 'quran' | 'tidak_aktif' | 'ulang'
 
 function progressLabel(p: StudentWithProgress['latestProgress']): string {
   if (!p) return 'Belum ada catatan'
@@ -46,49 +45,107 @@ function formatDate(dateStr: string | null): string {
   })
 }
 
+type Start = { iqroLevel: number; surahNumber: number; pos: number }
+
+/**
+ * Where today's entry most likely lands. A position is the last page/ayat
+ * read, so after L the student reads at least one more; after U they repeat
+ * the same one. The teacher adjusts with − / + from here.
+ */
+function startPosition(student: StudentWithProgress, t: ProgressType): Start {
+  const p = student.latestProgress?.type === t ? student.latestProgress : null
+  const step = student.needsRepeat ? 0 : 1
+
+  if (t === 'iqro') {
+    if (!p?.iqro_level) return { iqroLevel: 1, surahNumber: 78, pos: 1 }
+    const level = p.iqro_level
+    const page = (p.iqro_page ?? 0) + step
+    if (page > IQRO_PAGES[level - 1]) {
+      return level < 6
+        ? { iqroLevel: level + 1, surahNumber: 78, pos: 1 }
+        : { iqroLevel: level, surahNumber: 78, pos: IQRO_PAGES[level - 1] }
+    }
+    return { iqroLevel: level, surahNumber: 78, pos: Math.max(page, 1) }
+  }
+
+  const surahs = surahsForTrack(t)
+  const surah = surahByNumber(p?.surah_number)
+  if (!p || !surah || !surahs.includes(surah)) {
+    return { iqroLevel: 1, surahNumber: surahs[0].number, pos: 1 }
+  }
+  // At the end of a surah stay on its last ayat; the teacher picks the next
+  // surah (hafalan order differs between classes).
+  const ayat = Math.min((p.ayat ?? 0) + step, surah.ayat)
+  return { iqroLevel: 1, surahNumber: surah.number, pos: Math.max(ayat, 1) }
+}
+
 export default function StudentRoster({
   students,
+  today,
   isReadonly = false,
   isAdmin = false,
 }: {
   students: StudentWithProgress[]
+  /** School-local date (YYYY-MM-DD), to mark who has been logged today. */
+  today: string
   isReadonly?: boolean
   isAdmin?: boolean
 }) {
   const [filter, setFilter] = useState<Filter>('semua')
   const [selected, setSelected] = useState<StudentWithProgress | null>(null)
   const [trackType, setTrackType] = useState<ProgressType>('iqro')
+  const [start, setStart] = useState<Start>({ iqroLevel: 1, surahNumber: 78, pos: 1 })
   const [iqroLevel, setIqroLevel] = useState(1)
   const [surahNumber, setSurahNumber] = useState(78)
+  const [pos, setPos] = useState('1')
   const [outcome, setOutcome] = useState<'lanjut' | 'ulang'>('lanjut')
-  const [state, formAction, isPending] = useActionState(logProgress, null)
-  const prevIsPendingRef = useRef(false)
+  const [showNotes, setShowNotes] = useState(false)
+  const [toast, setToast] = useState<{ id: number; text: string } | null>(null)
 
-  useEffect(() => {
-    const wasPending = prevIsPendingRef.current
-    prevIsPendingRef.current = isPending
-    if (wasPending && !isPending && state === null) {
-      setSelected(null)
-    }
-  }, [isPending, state])
+  const [state, formAction, isPending] = useActionState(
+    async (prev: string | null, formData: FormData) => {
+      const error = await logProgress(prev, formData)
+      if (!error) {
+        const id = Date.now()
+        const name = students.find((s) => s.id === formData.get('student_id'))?.name
+        setToast({ id, text: name ? `Tersimpan · ${name}` : 'Tersimpan' })
+        setTimeout(() => setToast((t) => (t?.id === id ? null : t)), 3000)
+        setSelected(null)
+      }
+      return error
+    },
+    null
+  )
 
-  // Pre-fill the form from the student's last logged position.
-  function selectTrack(t: ProgressType, p: StudentWithProgress['latestProgress']) {
+  function selectTrack(student: StudentWithProgress, t: ProgressType) {
+    const s = startPosition(student, t)
     setTrackType(t)
-    if (t === 'iqro') {
-      setIqroLevel(p?.type === 'iqro' ? (p.iqro_level ?? 1) : 1)
-    } else {
-      const surahs = surahsForTrack(t)
-      const last = p?.type === t ? surahByNumber(p.surah_number) : null
-      setSurahNumber((last && surahs.includes(last) ? last : surahs[0]).number)
-    }
+    setStart(s)
+    setIqroLevel(s.iqroLevel)
+    setSurahNumber(s.surahNumber)
+    setPos(String(s.pos))
   }
 
   function openStudent(student: StudentWithProgress) {
     setSelected(student)
-    selectTrack(student.latestProgress?.type ?? 'iqro', student.latestProgress)
+    selectTrack(student, student.latestProgress?.type ?? 'iqro')
     setOutcome('lanjut')
+    setShowNotes(false)
   }
+
+  function changeIqroLevel(level: number) {
+    setIqroLevel(level)
+    setPos(String(level === start.iqroLevel ? start.pos : 1))
+  }
+
+  function changeSurah(n: number) {
+    setSurahNumber(n)
+    setPos(String(n === start.surahNumber ? start.pos : 1))
+  }
+
+  const isToday = (s: StudentWithProgress) =>
+    !s.latestProgress?.isOpening && s.latestProgress?.log_date === today
+  const pendingTodayCount = students.filter((s) => !isToday(s)).length
 
   const inactiveCount = students.filter((s) => s.isInactive).length
   const repeatCount = students.filter((s) => s.needsRepeat).length
@@ -99,6 +156,7 @@ export default function StudentRoster({
   ).length
 
   const filtered = students.filter((s) => {
+    if (filter === 'belum') return !isToday(s)
     if (filter === 'tidak_aktif') return s.isInactive
     if (filter === 'ulang') return s.needsRepeat
     if (filter === 'iqro') return s.latestProgress?.type === 'iqro'
@@ -115,8 +173,13 @@ export default function StudentRoster({
     )
   }
 
-  const last = selected?.latestProgress?.type === trackType ? selected.latestProgress : null
   const surah = trackType !== 'iqro' ? surahByNumber(surahNumber) : null
+  const posMax = trackType === 'iqro' ? IQRO_PAGES[iqroLevel - 1] : (surah?.ayat ?? 1)
+  const posNum = parseInt(pos) || 0
+  const prev = selected?.latestProgress
+  const lastLabel = prev
+    ? `${progressLabel(prev)}${selected?.needsRepeat ? ' · U' : ''}${prev.isOpening ? ' (dari tahun lalu)' : ''}`
+    : null
 
   return (
     <>
@@ -125,6 +188,7 @@ export default function StudentRoster({
         {(
           [
             { key: 'semua', label: 'Semua', count: students.length },
+            { key: 'belum', label: 'Belum Hari Ini', count: pendingTodayCount },
             { key: 'iqro', label: 'Iqro', count: iqroCount },
             { key: 'tadarus', label: 'Tadarus', count: tadarusCount },
             { key: 'quran', label: 'Hafalan', count: quranCount },
@@ -179,6 +243,8 @@ export default function StudentRoster({
                   </p>
                   {student.latestProgress?.isOpening ? (
                     <p className="text-xs text-ink-3">· dari tahun lalu</p>
+                  ) : isToday(student) ? (
+                    <p className="text-xs text-accent font-medium">· hari ini ✓</p>
                   ) : (
                     student.latestProgress?.log_date && (
                       <p className="text-xs text-ink-3">· {formatDate(student.latestProgress.log_date)}</p>
@@ -245,11 +311,6 @@ export default function StudentRoster({
               <div>
                 <p className="text-xs text-ink-3 font-medium">Catat Progres</p>
                 <h3 className="font-serif text-2xl text-ink leading-tight">{selected.name}</h3>
-                {selected.latestProgress?.isOpening && (
-                  <p className="text-xs text-ink-3 mt-1">
-                    Posisi awal (dari tahun lalu): {progressLabel(selected.latestProgress)}
-                  </p>
-                )}
               </div>
               <button
                 onClick={() => !isPending && setSelected(null)}
@@ -262,14 +323,14 @@ export default function StudentRoster({
               </button>
             </div>
 
-            {/* Track toggle */}
+            {/* Track toggle — pre-set to the student's current track */}
             <div className="flex rounded-xl bg-panel p-1 mb-4">
               {(['iqro', 'tadarus', 'juz30', 'juz29'] as ProgressType[]).map((t) => (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => selectTrack(t, selected.latestProgress)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                  onClick={() => selectTrack(selected, t)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer min-h-[40px] ${
                     trackType === t ? 'bg-surface text-ink shadow-sm' : 'text-ink-2'
                   }`}
                 >
@@ -283,125 +344,135 @@ export default function StudentRoster({
               <input type="hidden" name="type" value={trackType} />
               <input type="hidden" name="outcome" value={outcome} />
 
-              {trackType === 'iqro' && (
-                <div className="grid grid-cols-2 gap-3">
+              {trackType === 'iqro' ? (
+                <div>
+                  <label className="block text-xs font-medium text-ink-2 mb-1.5">Level Iqro</label>
+                  <select
+                    name="iqro_level"
+                    value={iqroLevel}
+                    onChange={(e) => changeIqroLevel(Number(e.target.value))}
+                    className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px] cursor-pointer"
+                  >
+                    {[1, 2, 3, 4, 5, 6].map((l) => (
+                      <option key={l} value={l}>Iqro {l}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                surah && (
                   <div>
-                    <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                      Level Iqro
-                    </label>
+                    <div className="flex items-end justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink-2">Surah</label>
+                      <span className="font-arabic text-lg leading-none text-ink-2" dir="rtl" lang="ar">
+                        {surah.arabic}
+                      </span>
+                    </div>
                     <select
-                      name="iqro_level"
-                      value={iqroLevel}
-                      onChange={(e) => setIqroLevel(Number(e.target.value))}
+                      name="surah_number"
+                      value={surahNumber}
+                      onChange={(e) => changeSurah(Number(e.target.value))}
                       className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px] cursor-pointer"
                     >
-                      {[1, 2, 3, 4, 5, 6].map((l) => (
-                        <option key={l} value={l}>Iqro {l}</option>
+                      {surahsForTrack(trackType).map((s) => (
+                        <option key={s.number} value={s.number}>
+                          {s.number}. {s.latin}
+                        </option>
                       ))}
                     </select>
+                    {trackType === 'tadarus' && (
+                      <p className="text-xs text-ink-3 mt-1.5">
+                        Tadarus: membaca Juz 30 dengan lancar, belum menghafal.
+                      </p>
+                    )}
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                      Halaman (1–{IQRO_PAGES[iqroLevel - 1]})
-                    </label>
+                )
+              )}
+
+              {/* Position: − / + instead of the keyboard; typing still works */}
+              <div>
+                <p className="text-xs font-medium text-ink-2 mb-1.5">
+                  {trackType === 'iqro' ? 'Halaman' : 'Ayat'} terakhir dibaca hari ini
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPos(String(Math.max(posNum - 1, 1)))}
+                    disabled={posNum <= 1}
+                    aria-label="Kurangi"
+                    className="w-14 h-14 shrink-0 rounded-2xl bg-panel text-ink text-2xl font-medium disabled:opacity-40 cursor-pointer active:bg-line"
+                  >
+                    −
+                  </button>
+                  <div className="flex-1 text-center">
                     <input
-                      key={`iqro-${iqroLevel}`}
-                      name="iqro_page"
+                      name={trackType === 'iqro' ? 'iqro_page' : 'ayat'}
                       type="number"
                       inputMode="numeric"
                       min={1}
-                      max={IQRO_PAGES[iqroLevel - 1]}
-                      defaultValue={last?.iqro_level === iqroLevel ? (last.iqro_page ?? 1) : 1}
-                      className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px]"
+                      max={posMax}
+                      value={pos}
+                      onChange={(e) => setPos(e.target.value)}
+                      aria-label={trackType === 'iqro' ? 'Halaman' : 'Ayat'}
+                      className="w-full bg-transparent text-center font-serif text-4xl text-ink leading-none outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
+                    <p className="text-[11px] text-ink-3 mt-1">dari {posMax}</p>
                   </div>
-                </div>
-              )}
-
-              {surah && trackType !== 'iqro' && (
-                <>
-                  <div className="grid grid-cols-[1fr_6rem] gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-ink-2 mb-1.5">Surah</label>
-                      <select
-                        name="surah_number"
-                        value={surahNumber}
-                        onChange={(e) => setSurahNumber(Number(e.target.value))}
-                        className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px] cursor-pointer"
-                      >
-                        {surahsForTrack(trackType).map((s) => (
-                          <option key={s.number} value={s.number}>
-                            {s.number}. {s.latin}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                        Ayat (1–{surah.ayat})
-                      </label>
-                      <input
-                        key={`ayat-${trackType}-${surahNumber}`}
-                        name="ayat"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={surah.ayat}
-                        defaultValue={last?.surah_number === surahNumber ? (last.ayat ?? 1) : 1}
-                        className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink min-h-[44px]"
-                      />
-                    </div>
-                  </div>
-                  <p className="font-arabic text-right text-lg text-ink-2 -mt-2" dir="rtl" lang="ar">
-                    {surah.arabic}
-                  </p>
-
-                  {trackType === 'tadarus' && (
-                    <p className="text-xs text-ink-3 -mt-1">
-                      Tadarus: membaca Juz 30 dengan lancar, belum menghafal.
-                    </p>
-                  )}
-                </>
-              )}
-
-              {/* L / U — same as the paper Mutaba'ah column */}
-              <div>
-                <p className="text-xs font-medium text-ink-2 mb-1.5">Hasil</p>
-                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
-                    onClick={() => setOutcome('lanjut')}
-                    aria-pressed={outcome === 'lanjut'}
-                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
-                      outcome === 'lanjut' ? 'bg-accent text-surface border-accent' : 'bg-surface text-ink border-line'
-                    }`}
+                    onClick={() => setPos(String(Math.min(posNum + 1, posMax)))}
+                    disabled={posNum >= posMax}
+                    aria-label="Tambah"
+                    className="w-14 h-14 shrink-0 rounded-2xl bg-accent-soft text-accent text-2xl font-medium disabled:opacity-40 cursor-pointer active:bg-panel"
                   >
-                    L · Lanjut
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOutcome('ulang')}
-                    aria-pressed={outcome === 'ulang'}
-                    className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
-                      outcome === 'ulang' ? 'bg-gold text-surface border-gold' : 'bg-surface text-ink border-line'
-                    }`}
-                  >
-                    U · Ulang
+                    +
                   </button>
                 </div>
+                {lastLabel && (
+                  <p className="text-xs text-ink-3 mt-2 text-center">Sebelumnya: {lastLabel}</p>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-ink-2 mb-1.5">
-                  Catatan untuk orang tua (opsional)
-                </label>
+              {/* L / U — same as the paper Mutaba'ah column */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOutcome('lanjut')}
+                  aria-pressed={outcome === 'lanjut'}
+                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
+                    outcome === 'lanjut' ? 'bg-accent text-surface border-accent' : 'bg-surface text-ink border-line'
+                  }`}
+                >
+                  L · Lanjut
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOutcome('ulang')}
+                  aria-pressed={outcome === 'ulang'}
+                  className={`py-2.5 rounded-xl text-sm font-medium border transition-colors cursor-pointer min-h-[44px] ${
+                    outcome === 'ulang' ? 'bg-gold text-surface border-gold' : 'bg-surface text-ink border-line'
+                  }`}
+                >
+                  U · Ulang
+                </button>
+              </div>
+
+              {showNotes ? (
                 <textarea
                   name="notes"
-                  placeholder="Mis: Bacaan sudah lancar, perlu latihan tajwid..."
+                  autoFocus
+                  placeholder="Catatan untuk orang tua, mis: bacaan sudah lancar, perlu latihan tajwid..."
                   rows={2}
                   className="w-full bg-paper border border-line rounded-xl px-3 py-2.5 text-sm text-ink resize-none"
                 />
-              </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowNotes(true)}
+                  className="w-full text-left text-sm text-ink-2 min-h-[44px] cursor-pointer"
+                >
+                  + Tambah catatan untuk orang tua
+                </button>
+              )}
 
               {state && (
                 <p className="text-sm text-warn bg-warn-soft rounded-xl px-3 py-2">{state}</p>
@@ -410,7 +481,7 @@ export default function StudentRoster({
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full bg-accent text-surface font-semibold py-3 rounded-full text-sm disabled:opacity-50 min-h-[44px] cursor-pointer"
+                className="w-full bg-accent text-surface font-semibold py-3 rounded-full text-sm disabled:opacity-50 min-h-[48px] cursor-pointer"
               >
                 {isPending ? 'Menyimpan...' : 'Simpan Catatan'}
               </button>
@@ -430,6 +501,15 @@ export default function StudentRoster({
           </>
         )}
       </div>
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed left-1/2 -translate-x-1/2 bottom-[max(1.5rem,env(safe-area-inset-bottom))] z-50 bg-ink text-paper text-sm font-medium px-4 py-2.5 rounded-full shadow-lg"
+        >
+          ✓ {toast.text}
+        </div>
+      )}
     </>
   )
 }

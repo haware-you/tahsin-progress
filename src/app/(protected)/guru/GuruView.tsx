@@ -2,6 +2,7 @@ import { ArrowUpRight } from 'lucide-react'
 import AppShell from '@/components/AppShell'
 import { SectionTitle, WeekStrip, Timeline, Chip, relativeDay, type TimelineItem } from '@/components/ui'
 import { firstName } from '@/lib/format'
+import { schoolDate } from '@/lib/time'
 import StudentRoster, { type StudentWithProgress } from './StudentRoster'
 
 export type GuruViewProps = {
@@ -118,7 +119,7 @@ export default function GuruView({
           classesWithStudents.map((cls) => (
             <section key={cls.id}>
               <SectionTitle action={<Chip tone="muted">{cls.students.length} siswa</Chip>}>{cls.name}</SectionTitle>
-              <StudentRoster students={cls.students} isReadonly={isReadonly} isAdmin={isAdmin} />
+              <StudentRoster students={cls.students} today={schoolDate(now)} isReadonly={isReadonly} isAdmin={isAdmin} />
             </section>
           ))
         ) : (

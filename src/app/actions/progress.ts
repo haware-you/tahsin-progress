@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { JUZ_RANGE, IQRO_PAGES, surahByNumber, surahsForTrack } from '@/lib/quran'
+import { schoolDate } from '@/lib/time'
 
 // Badges are awarded by the `award_badges_after_progress_log` trigger in
 // supabase/migrations/20260920000001_badge_award_trigger.sql (Khatam Juz rule
@@ -43,6 +44,9 @@ export async function logProgress(
   if (outcome !== 'lanjut' && outcome !== 'ulang') return 'Pilih L (Lanjut) atau U (Ulang).'
 
   const base = {
+    // The column default is the database's CURRENT_DATE (UTC), which is still
+    // yesterday for sessions before 07:00 WIB.
+    log_date: schoolDate(Date.now()),
     student_id: studentId,
     teacher_id: teacher.id,
     academic_year_id: activeYear.id,
